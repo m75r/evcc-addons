@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.dev/
+e2e/.data/
+e2e/.build/
+test-results/
+playwright-report/
+*.tsbuildinfo
+.DS_Store

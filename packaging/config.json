@@ -1,0 +1,7 @@
+{
+  "listen": { "host": "0.0.0.0", "port": 80 },
+  "evccUrl": "http://127.0.0.1:7070",
+  "dataDir": "/var/lib/evcc-addons",
+  "publicDir": "/opt/evcc-addons/public",
+  "logLevel": "info"
+}

@@ -1,0 +1,16 @@
+{
+  "name": "@evcc-addons/proxy",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "evcc addons reverse proxy",
+  "scripts": {
+    "build": "node build.mjs"
+  },
+  "dependencies": {
+    "fflate": "^0.8.3"
+  },
+  "devDependencies": {
+    "@evcc-addons/sdk": "*"
+  }
+}

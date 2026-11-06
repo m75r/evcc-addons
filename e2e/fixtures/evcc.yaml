@@ -1,0 +1,94 @@
+# evcc-Konfiguration für die E2E-Tests (Vorlage: evcc tests/basics.evcc.yaml)
+interval: 0.1s
+
+site:
+  title: Hello World
+  meters:
+    grid: grid
+    pv:
+      - pv
+    consumer:
+      - kuehlschrank
+    aux:
+      - heizstab
+
+meters:
+  - name: grid
+    type: custom
+    power:
+      source: js
+      script: |
+        1000
+  - name: pv
+    type: custom
+    power:
+      source: js
+      script: |
+        4321
+  - name: kuehlschrank
+    type: custom
+    power:
+      source: js
+      script: |
+        120
+    energy:
+      source: js
+      script: |
+        57.5
+  - name: heizstab
+    type: custom
+    power:
+      source: js
+      script: |
+        1500
+  - name: charger_meter
+    type: custom
+    power:
+      source: js
+      script: |
+        500
+
+loadpoints:
+  - title: Carport
+    charger: charger
+    meter: charger_meter
+    mode: now
+  # Steckdosen-Ladepunkt (Feature SwitchDevice) für das Verbraucher-Addon
+  - title: Waschmaschine
+    charger: socket
+    mode: off
+
+chargers:
+  # entspricht dem evcc-Template demo-switch (enabled: true, power: 150), das evcc/evcc:latest
+  # (0.318) noch nicht enthält
+  - name: socket
+    type: switchsocket
+    enabled:
+      source: const
+      value: true
+    enable:
+      source: js
+      script:
+    power:
+      source: const
+      value: 150
+    standbypower: 0
+    features:
+      - switchdevice
+  - name: charger
+    type: custom
+    enable:
+      source: js
+      script:
+    enabled:
+      source: js
+      script: |
+        true
+    status:
+      source: js
+      script: |
+        "C"
+    maxcurrent:
+      source: js
+      script: |
+        16

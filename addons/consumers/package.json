@@ -1,0 +1,16 @@
+{
+  "name": "@evcc-addons/addon-consumers",
+  "version": "1.0.3",
+  "private": true,
+  "type": "module",
+  "description": "Consumers addon: monitor consumer/aux meters and switch socket loadpoints",
+  "scripts": {
+    "build": "node ../../scripts/build-addon.mjs ."
+  },
+  "dependencies": {
+    "preact": "^11.2.0"
+  },
+  "devDependencies": {
+    "@evcc-addons/sdk": "*"
+  }
+}

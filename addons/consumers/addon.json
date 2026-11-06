@@ -1,0 +1,11 @@
+{
+  "id": "consumers",
+  "name": { "de": "Verbraucher", "en": "Consumers" },
+  "version": "1.0.3",
+  "description": {
+    "de": "Monitoring und Steuerung von Verbrauchern",
+    "en": "Monitor and control consumers"
+  },
+  "apiVersion": 1,
+  "entry": "index.js"
+}

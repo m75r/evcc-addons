@@ -1,0 +1,16 @@
+{
+  "name": "@evcc-addons/loader",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Browser loader that adds the addon system to the evcc UI",
+  "scripts": {
+    "build": "node build.mjs"
+  },
+  "dependencies": {
+    "preact": "^11.2.0"
+  },
+  "devDependencies": {
+    "@evcc-addons/sdk": "*"
+  }
+}

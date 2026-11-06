@@ -1,0 +1,53 @@
+/* Styles des Addon-Loaders; werden einmalig als <style id="evcc-addons-style"> eingefügt */
+
+#evcc-addons-page[hidden] {
+  display: none !important;
+}
+
+/* evcc gibt #app > .app eine Mindesthöhe von 100dvh; auf Addon-Seiten beginnt der Inhalt sonst erst darunter */
+html.evcc-addons-page-route #app > .app {
+  min-height: 0 !important;
+}
+
+/* Rückfall, falls kein evcc-Eintrag als Klon-Vorbild gefunden wird */
+.dropdown-item.evcc-addons-fallback {
+  display: block;
+  padding: 0.25rem 1rem;
+  color: var(--evcc-default-text);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.dropdown-item.evcc-addons-fallback.active {
+  background-color: transparent;
+  color: var(--bs-primary);
+  border-left: 2px solid var(--bs-primary);
+}
+
+/* Auf einer Addon-Tab-Route markiert evcc „Mehr“ als aktiv (Bar.vue moreActive); ab 576 px unterdrücken */
+@media (min-width: 576px) {
+  html.evcc-addons-tab-route [data-testid="tab-more"].active {
+    color: var(--evcc-gray) !important;
+  }
+
+  html.evcc-addons-tab-route [data-testid="tab-more"].active::before {
+    background: transparent !important;
+  }
+}
+
+/* Rückfall-Tab ohne evcc-Vorbild */
+.evcc-addons-fallback-tab {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 0.4rem 0;
+  color: var(--evcc-gray);
+}
+
+.evcc-addons-fallback-tab.active {
+  color: var(--bs-primary);
+}
+
+.evcc-addons-fallback-tab .tab-icon {
+  width: 24px;
+  height: 24px;
+}

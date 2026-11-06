@@ -1,0 +1,8 @@
+{
+  "comment": "Addons, die vor jedem E2E-Test installiert sind (Pfade relativ zur Repo-Wurzel)",
+  "zips": [
+    "dist/addons/hello-0.1.0.zip",
+    "e2e/.build/test-addon-0.1.0.zip",
+    "e2e/.build/broken-addon-0.1.0.zip"
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "name": "@evcc-addons/addon-hello",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Example addon: menu entry and a page with live PV power",
+  "scripts": {
+    "build": "node ../../scripts/build-addon.mjs ."
+  },
+  "devDependencies": {
+    "@evcc-addons/sdk": "*"
+  }
+}

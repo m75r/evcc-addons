@@ -1,0 +1,85 @@
+/* Verbraucher-Addon: Raster und Kartenzeilen, nur evcc-Variablen */
+
+.evcc-consumers-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.evcc-consumers-card {
+  background: var(--evcc-box);
+  color: var(--evcc-default-text);
+}
+
+.evcc-consumers-card .evcc-consumers-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+/* Geräte-Icon wie evcc DeviceCard: 24 px in Textfarbe */
+.evcc-consumers-card .evcc-consumers-icon {
+  display: flex;
+  flex: none;
+  color: var(--evcc-default-text);
+}
+
+.evcc-consumers-card .evcc-consumers-icon svg {
+  display: block;
+  width: 24px;
+  height: 24px;
+}
+
+.evcc-consumers-card hr {
+  margin: 0.75rem 0;
+  border-color: var(--evcc-gray);
+  opacity: 0.25;
+}
+
+.evcc-consumers-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.25rem;
+}
+
+/* Farben wie evcc DeviceTags (Konfigurationsseite) */
+.evcc-consumers-row .evcc-consumers-label {
+  color: var(--evcc-default-text);
+}
+
+.evcc-consumers-row .evcc-consumers-value {
+  font-weight: bold;
+  color: var(--bs-primary);
+  white-space: nowrap;
+}
+
+.evcc-consumers-row .evcc-consumers-value.is-muted {
+  color: var(--evcc-gray);
+}
+
+.evcc-consumers-row .evcc-consumers-value.is-error {
+  color: var(--bs-danger);
+}
+
+.evcc-consumers-hint {
+  font-size: 0.875rem;
+  color: var(--evcc-gray);
+  margin: -0.5rem 0 1rem;
+}
+
+.evcc-consumers-section {
+  font-size: 0.875rem;
+  font-weight: normal;
+  text-transform: uppercase;
+  color: var(--evcc-gray);
+  margin-bottom: 1rem;
+}
+
+.evcc-consumers-error {
+  color: var(--bs-danger);
+  font-size: 0.875rem;
+  margin-top: 0.5rem;
+}
