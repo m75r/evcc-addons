@@ -39,7 +39,7 @@ describe("Paket-Metadaten", () => {
     expect(fields).toContain(`Version: ${VERSION}`);
   });
 
-  it("enthält Server, Loader, mitgelieferte Addons, Unit und Konfiguration, aber keine Fixtures", () => {
+  it("enthält Server, Loader, Addons, Unit, Konfiguration und Lizenzen, aber keine Fixtures", () => {
     const listing = inContainer("debian:bookworm-slim", `dpkg-deb -c /pkg/${DEB}`);
     for (const path of [
       "./opt/evcc-addons/server.mjs",
@@ -48,6 +48,8 @@ describe("Paket-Metadaten", () => {
       "./opt/evcc-addons/addons/hello-0.1.0.zip",
       "./usr/lib/systemd/system/evcc-addons.service",
       "./etc/evcc-addons/config.json",
+      "./usr/share/doc/evcc-addons/LICENSE",
+      "./usr/share/doc/evcc-addons/THIRD_PARTY_NOTICES.md",
     ]) {
       expect(listing).toContain(path);
     }

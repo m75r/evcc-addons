@@ -1,6 +1,9 @@
 // Baut den Browser-Loader als ES-Modul dist/loader.js
 import { build } from "esbuild";
 import { resolve } from "node:path";
+import { legalBanner } from "../../scripts/legal.mjs";
+
+const BANNER = legalBanner("evcc-addons loader", ["Preact (MIT)", "@h2d2/shopicons (Apache-2.0)"]);
 
 try {
   await build({
@@ -13,7 +16,8 @@ try {
     jsxImportSource: "preact",
     loader: { ".css": "text" },
     minify: true,
-    legalComments: "none",
+    legalComments: "eof",
+    banner: { js: BANNER },
     logLevel: "warning",
   });
 } catch (err) {

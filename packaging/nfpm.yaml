@@ -18,6 +18,11 @@ contents:
   - src: dist/package/opt/
     dst: /opt/evcc-addons/
     type: tree
+  # Lizenz und Fremdlizenzen (MIT, Apache-2.0) wie bei Debian üblich unter /usr/share/doc
+  - src: LICENSE
+    dst: /usr/share/doc/evcc-addons/LICENSE
+  - src: THIRD_PARTY_NOTICES.md
+    dst: /usr/share/doc/evcc-addons/THIRD_PARTY_NOTICES.md
   - src: packaging/evcc-addons.service
     dst: /usr/lib/systemd/system/evcc-addons.service
   - src: packaging/config.json

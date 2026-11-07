@@ -2,6 +2,7 @@
 import { build } from "esbuild";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import { legalBanner } from "../../scripts/legal.mjs";
 
 const root = resolve(import.meta.dirname, "../..");
 const pkg = JSON.parse(await readFile(resolve(root, "package.json"), "utf8"));
@@ -15,7 +16,8 @@ try {
     format: "esm",
     bundle: true,
     sourcemap: false,
-    legalComments: "none",
+    legalComments: "eof",
+    banner: { js: legalBanner("evcc-addons server", ["fflate (MIT)"]) },
     define: { __VERSION__: JSON.stringify(pkg.version) },
     logLevel: "warning",
   });

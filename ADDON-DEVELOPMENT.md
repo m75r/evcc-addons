@@ -28,14 +28,14 @@ Die Dateien eines Addons liefert der Proxy unter `/addons-static/<id>/<pfad>` au
 }
 ```
 
-| Feld          | Pflicht | Regeln                                                                                          |
-| ------------- | ------- | ----------------------------------------------------------------------------------------------- |
-| `id`          | ja      | `^[a-z][a-z0-9-]{1,39}$`, eindeutig. Bestimmt URL (`#/addons/<id>`) und Ablageort              |
-| `name`        | ja      | Text oder Objekt `{ "<sprache>": "<text>" }`                                                    |
-| `version`     | ja      | `x.y.z` oder `x.y.z-pre`                                                                         |
-| `description` | nein    | wie `name`                                                                                       |
-| `apiVersion`  | ja      | `1`                                                                                              |
-| `entry`       | ja      | relativer Pfad auf eine `.js`- oder `.mjs`-Datei im Paket                                        |
+| Feld          | Pflicht | Regeln                                                                                            |
+| ------------- | ------- | ------------------------------------------------------------------------------------------------- |
+| `id`          | ja      | `^[a-z][a-z0-9-]{1,39}$`, eindeutig. Bestimmt URL (`#/addons/<id>`) und Ablageort                 |
+| `name`        | ja      | Text oder Objekt `{ "<sprache>": "<text>" }`                                                      |
+| `version`     | ja      | `x.y.z` oder `x.y.z-pre`                                                                          |
+| `description` | nein    | wie `name`                                                                                        |
+| `apiVersion`  | ja      | `1`                                                                                               |
+| `entry`       | ja      | relativer Pfad auf eine `.js`- oder `.mjs`-Datei im Paket                                         |
 | `settings`    | nein    | Einstellungen, die ein Admin auf der Seite „Addons“ ändert, siehe [Einstellungen](#einstellungen) |
 
 Texte vom Typ `Localized` werden so aufgelöst: exakte Sprache (`de-DE`), dann Basissprache (`de`), dann `en`, dann der erste Eintrag.
@@ -109,21 +109,21 @@ export const activate: ActivateFn = (api) => {
 
 ## API
 
-| Methode                      | Beschreibung                                                                                                                                                       |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `id`                         | id des Addons                                                                                                                                                       |
-| `addTab(item)`               | Tab vor „Mehr“ in der Menüleiste. Unter 576 px steht er stattdessen im Menü „Mehr“                                                                                |
-| `addMoreMenuItem(item)`      | Eintrag im Menü „Mehr“ hinter „Addons“, in Registrierungsreihenfolge                                                                                               |
-| `registerPage(page)`         | Seite unter `#/addons/<id>` bzw. `#/addons/<id>/<page.path>`. Über dem Inhalt steht eine Kopfzeile mit `page.title`                                              |
-| `state.get(key?)`            | aktueller Wert unter einem Punkt-Schlüssel, z. B. `loadpoints.0.chargePower`, ohne Schlüssel der Gesamtzustand                                                   |
-| `state.subscribe(prefix, cb)`| `cb(value)` bei jeder Änderung unter `prefix` (und sofort, wenn schon Daten vorliegen). Gibt die Abmeldefunktion zurück                                            |
-| `settings.get(key)`          | Wert einer Einstellung aus `addon.json` → `settings` (mit Default), `undefined` bei unbekanntem Schlüssel                                                        |
-| `settings.all()`             | alle Einstellungen als Objekt `{ key: wert }` (Kopie)                                                                                                              |
-| `settings.onChange(cb)`      | `cb(values)` nach dem Speichern auf der Seite „Addons“ im selben Fenster. Andere Fenster und Geräte sehen Änderungen erst nach dem nächsten Laden. Gibt die Abmeldefunktion zurück |
-| `evccApi(path, init?)`       | `fetch` auf `api/<path>` von evcc, relativ zur Seite, z. B. `evccApi("loadpoints/1/mode/now", { method: "POST" })`                                                |
-| `locale()`                   | Sprache der evcc-Oberfläche (`<html lang>`)                                                                                                                         |
-| `theme()`                    | `"light"` oder `"dark"`                                                                                                                                             |
-| `onEnvChange(cb)`            | `cb()` bei Sprach- oder Theme-Wechsel. Gibt die Abmeldefunktion zurück                                                                                              |
+| Methode                       | Beschreibung                                                                                                                                                                       |
+| ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`                          | id des Addons                                                                                                                                                                      |
+| `addTab(item)`                | Tab vor „Mehr“ in der Menüleiste. Unter 576 px steht er stattdessen im Menü „Mehr“                                                                                                 |
+| `addMoreMenuItem(item)`       | Eintrag im Menü „Mehr“ hinter „Addons“, in Registrierungsreihenfolge                                                                                                               |
+| `registerPage(page)`          | Seite unter `#/addons/<id>` bzw. `#/addons/<id>/<page.path>`. Über dem Inhalt steht eine Kopfzeile mit `page.title`                                                                |
+| `state.get(key?)`             | aktueller Wert unter einem Punkt-Schlüssel, z. B. `loadpoints.0.chargePower`, ohne Schlüssel der Gesamtzustand                                                                     |
+| `state.subscribe(prefix, cb)` | `cb(value)` bei jeder Änderung unter `prefix` (und sofort, wenn schon Daten vorliegen). Gibt die Abmeldefunktion zurück                                                            |
+| `settings.get(key)`           | Wert einer Einstellung aus `addon.json` → `settings` (mit Default), `undefined` bei unbekanntem Schlüssel                                                                          |
+| `settings.all()`              | alle Einstellungen als Objekt `{ key: wert }` (Kopie)                                                                                                                              |
+| `settings.onChange(cb)`       | `cb(values)` nach dem Speichern auf der Seite „Addons“ im selben Fenster. Andere Fenster und Geräte sehen Änderungen erst nach dem nächsten Laden. Gibt die Abmeldefunktion zurück |
+| `evccApi(path, init?)`        | `fetch` auf `api/<path>` von evcc, relativ zur Seite, z. B. `evccApi("loadpoints/1/mode/now", { method: "POST" })`                                                                 |
+| `locale()`                    | Sprache der evcc-Oberfläche (`<html lang>`)                                                                                                                                        |
+| `theme()`                     | `"light"` oder `"dark"`                                                                                                                                                            |
+| `onEnvChange(cb)`             | `cb()` bei Sprach- oder Theme-Wechsel. Gibt die Abmeldefunktion zurück                                                                                                             |
 
 `NavItem`: `label` (Pflicht), `icon` (SVG-Markup, nur Tabs, Standard: Puzzle-Icon), `page` (Unterseite) oder `href` (freies Ziel).
 
@@ -140,11 +140,11 @@ Die Daten stammen aus dem evcc-WebSocket `/ws`. Die Verbindung öffnet der Loade
 
 ## Routen
 
-| Route                     | Inhalt                       |
-| ------------------------- | ---------------------------- |
-| `#/addons`                | Seite „Addons“ (Verwaltung)  |
-| `#/addons/<id>`           | Seite ohne `path`            |
-| `#/addons/<id>/<path>[/…]`| Seite mit `path`, Rest in `ctx.subPath` |
+| Route                      | Inhalt                                  |
+| -------------------------- | --------------------------------------- |
+| `#/addons`                 | Seite „Addons“ (Verwaltung)             |
+| `#/addons/<id>`            | Seite ohne `path`                       |
+| `#/addons/<id>/<path>[/…]` | Seite mit `path`, Rest in `ctx.subPath` |
 
 ## Stil
 

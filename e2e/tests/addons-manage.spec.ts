@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 import { repoPath, resetAddons } from "../helpers/addons.js";
 import { openEvcc, openMoreMenu } from "../helpers/evcc.js";
 import { loginViaUi, uploadZip as uploadFile } from "../helpers/login.js";
@@ -24,6 +24,18 @@ test("ohne Login erscheint das Anmeldefeld, mit Passwort die Verwaltung", async 
   await expect(page.locator(".more-menu").getByText("Abmelden", { exact: true })).toBeVisible();
 });
 
+/** Rahmenfarbe des Elements gleich der berechneten Farbe von --evcc-gray-50 */
+function borderMatchesGray(locator: Locator): Promise<boolean> {
+  return locator.evaluate((el) => {
+    const probe = document.createElement("span");
+    probe.style.color = "var(--evcc-gray-50)";
+    document.body.append(probe);
+    const gray = getComputedStyle(probe).color;
+    probe.remove();
+    return getComputedStyle(el).borderTopColor === gray;
+  });
+}
+
 test("„+ Neu“ rechts neben dem Titel blendet das Installieren statt des Subtexts ein", async ({
   page,
 }) => {
@@ -33,23 +45,19 @@ test("„+ Neu“ rechts neben dem Titel blendet das Installieren statt des Subt
   const button = page.getByTestId("addons-new");
   await expect(subtitle).toContainText("Addons erweitern evcc");
   await expect(install).toHaveCount(0);
-  const title = await page.locator("#evcc-addons-page h1").boundingBox();
-  const box = await button.boundingBox();
-  expect(title && box && box.x > title.x + title.width - 1).toBe(true);
-  // Stil wie evcc NewDeviceButton (Konfiguration): Radius 1rem, Rahmen in --evcc-gray-50
+  const heading = page.locator("#evcc-addons-page h1");
+  // Layout und Schriften können nach dem Neuladen noch nachziehen, daher per Poll
+  await expect
+    .poll(async () => {
+      const [title, box] = await Promise.all([heading.boundingBox(), button.boundingBox()]);
+      return !!title && !!box && box.x > title.x + title.width - 1;
+    })
+    .toBe(true);
+  // Stil wie evcc NewDeviceButton (Konfiguration): Radius 1rem, Rahmen in --evcc-gray-50.
+  // Maus wegbewegen, damit kein Hover (Rahmen in Textfarbe) das Ergebnis verfälscht.
+  await page.mouse.move(0, 0);
   await expect(button).toHaveCSS("border-top-left-radius", "16px");
-  const colors = await button.evaluate((el) => {
-    const probe = document.createElement("span");
-    probe.style.color = "var(--evcc-gray-50)";
-    document.body.append(probe);
-    const result = {
-      border: getComputedStyle(el).borderTopColor,
-      gray: getComputedStyle(probe).color,
-    };
-    probe.remove();
-    return result;
-  });
-  expect(colors.border).toBe(colors.gray);
+  await expect.poll(() => borderMatchesGray(button)).toBe(true);
 
   await button.click();
   await expect(install).toBeVisible();

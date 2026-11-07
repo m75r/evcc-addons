@@ -6,6 +6,8 @@ Ein eigenständiger Dienst, der vor [evcc](https://evcc.io) sitzt und die evcc-O
 - In die evcc-Startseite wird ein Loader eingeschleust.
 - Im Menü „Mehr“ erscheint der Eintrag „Addons“ (`#/addons`).
 
+> **Inoffizielles Projekt:** evcc-addons ist ein privates Projekt und steht in keiner Verbindung zu evcc.io oder den evcc-Entwicklern. „evcc“ bezeichnet hier nur die Software, die erweitert wird.
+
 ## Architektur
 
 ```
@@ -132,7 +134,7 @@ Hinweise:
 
 - Ist in evcc noch kein Admin-Passwort gesetzt, erscheint „Bitte in evcc ein Admin-Passwort setzen.“
 - Ist die Authentifizierung in evcc deaktiviert, meldet evcc jeden Aufruf als angemeldet. Dann ist auch die Addon-Verwaltung ohne Passwort offen.
-- Wie Addons gebaut werden, steht in [docs/addon-development.md](docs/addon-development.md).
+- Wie Addons gebaut werden, steht in [ADDON-DEVELOPMENT.md](ADDON-DEVELOPMENT.md).
 
 ## Verbraucher-Addon
 
@@ -194,3 +196,9 @@ Um gegen das evcc auf dem Raspberry Pi zu entwickeln, eine eigene Konfiguration 
 ```sh
 npm run build && node packages/proxy/dist/server.mjs --config .dev/pi.json
 ```
+
+## Lizenz
+
+evcc-addons steht unter der [MIT-Lizenz](LICENSE), Copyright (c) 2026 Matthias Gasser.
+
+Die ausgelieferten Dateien enthalten Fremdkomponenten unter eigenen Lizenzen: [Preact](https://github.com/preactjs/preact) und [fflate](https://github.com/101arrowz/fflate) (MIT), Geräte-Icons aus [evcc](https://github.com/evcc-io/evcc) (MIT) und Icons aus [@h2d2/shopicons](https://github.com/H2D2-Design/h2d2-shopicons) (Apache-2.0). Die Lizenztexte stehen in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Beide Dateien liegen jeder Addon-ZIP bei, das Debian-Paket installiert sie nach `/usr/share/doc/evcc-addons/`.
