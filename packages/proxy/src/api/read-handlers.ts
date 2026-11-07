@@ -21,6 +21,8 @@ export function toAddonDto(addon: InstalledAddon, status: StatusRegistry) {
     entry,
     enabled: addon.enabled,
     error: status.get(id),
+    settings: addon.manifest.settings ?? [],
+    settingValues: addon.settings,
   };
 }
 

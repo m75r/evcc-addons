@@ -1,5 +1,5 @@
 // Client für die Verwaltungs-API des Proxys (/addons-api)
-import type { Localized } from "@evcc-addons/sdk";
+import type { Localized, SettingDef, SettingValues } from "@evcc-addons/sdk";
 import { evccApi, pageBase } from "./evcc-api.js";
 
 export interface AddonInfo {
@@ -10,6 +10,10 @@ export interface AddonInfo {
   entry: string;
   enabled: boolean;
   error: string | null;
+  /** Schema aus addon.json, sonst [] */
+  settings: SettingDef[];
+  /** Werte, mit Defaults aufgelöst */
+  settingValues: SettingValues;
 }
 
 export class ApiError extends Error {
@@ -102,6 +106,15 @@ export async function setAddonEnabled(id: string, enabled: boolean): Promise<Add
   return (await res.json()) as AddonInfo;
 }
 
+export async function saveAddonSettings(id: string, values: SettingValues): Promise<AddonInfo> {
+  const res = await request(`addons/${encodeURIComponent(id)}/settings`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ values }),
+  });
+  return (await res.json()) as AddonInfo;
+}
+
 export async function uninstallAddon(id: string): Promise<void> {
   await request(`addons/${encodeURIComponent(id)}`, { method: "DELETE" });
 }
@@ -128,6 +141,7 @@ export interface ManagerClient {
   getSession: () => Promise<Session>;
   installAddon: (file: Blob) => Promise<InstallResponse>;
   setAddonEnabled: (id: string, enabled: boolean) => Promise<AddonInfo>;
+  saveAddonSettings: (id: string, values: SettingValues) => Promise<AddonInfo>;
   uninstallAddon: (id: string) => Promise<void>;
   login: (password: string) => Promise<void>;
 }
@@ -137,6 +151,7 @@ export const managerClient: ManagerClient = {
   getSession,
   installAddon,
   setAddonEnabled,
+  saveAddonSettings,
   uninstallAddon,
   login,
 };

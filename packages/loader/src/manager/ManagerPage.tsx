@@ -1,7 +1,8 @@
 // Seite „Addons“ (#/addons): Sitzung, Installation und Liste der Addons
 import { useCallback, useEffect, useState } from "preact/hooks";
-import type { AddonInfo, ManagerClient, Session } from "../addons-client.js";
+import type { AddonInfo, ManagerClient, Session, SessionReason } from "../addons-client.js";
 import { t, type MessageKey } from "../i18n.js";
+import { PLUS_ICON } from "../icons.js";
 import { AddonCard, type AddonActions } from "./AddonCard.js";
 import { InstallForm } from "./InstallForm.js";
 import { LoginForm } from "./LoginForm.js";
@@ -14,6 +15,10 @@ export interface ManagerPageProps {
   whenLoaded: Promise<void>;
   reload: () => void;
   confirm: (message: string) => boolean;
+  /** Gespeicherte Einstellungen an die laufenden Addons weitergeben */
+  onSettingsSaved: (addon: AddonInfo) => void;
+  /** Laufende Version von evcc-addons, null wenn unbekannt */
+  version: string | null;
 }
 
 type Loadable<T> =
@@ -53,7 +58,9 @@ export function ManagerPage(props: ManagerPageProps) {
     await props.whenLoaded;
     return client.listAddons();
   }, []);
+  const [installOpen, setInstallOpen] = useState(false);
   const canManage = !forceLogin && session.kind === "ready" && session.value.canManage;
+  const showInstall = canManage && installOpen;
   const reason = forceLogin
     ? "login-required"
     : session.kind === "ready"
@@ -62,19 +69,32 @@ export function ManagerPage(props: ManagerPageProps) {
   const actions: AddonActions = {
     setEnabled: (id, enabled) => client.setAddonEnabled(id, enabled),
     uninstall: (id) => client.uninstallAddon(id),
+    saveSettings: (id, values) => client.saveAddonSettings(id, values),
+    onSettingsSaved: (addon) => props.onSettingsSaved(addon),
     confirm: (message) => props.confirm(message),
     reload: () => props.reload(),
     onUnauthorized: () => setForceLogin(true),
   };
   return (
     <div data-testid="addons-manager">
-      <PageHeader locale={locale} />
+      <PageHeader
+        locale={locale}
+        version={props.version}
+        showNew={canManage}
+        newOpen={showInstall}
+        onNew={() => setInstallOpen((open) => !open)}
+      />
+      {!showInstall && (
+        <p class="text-muted mb-4" data-testid="addons-subtitle">
+          {t("addons.subtitle", locale)}
+        </p>
+      )}
       {props.coreErrors.map((message) => (
         <div class="alert alert-danger" key={message}>
           {t("core.error", locale)} {message}
         </div>
       ))}
-      {canManage && (
+      {showInstall && (
         <InstallForm
           locale={locale}
           install={(file) => client.installAddon(file)}
@@ -90,18 +110,68 @@ export function ManagerPage(props: ManagerPageProps) {
           {t(`session.${reason}` as MessageKey, locale)}
         </div>
       )}
-      <AddonList list={addons} locale={locale} canManage={canManage} actions={actions} />
+      <AddonList
+        list={addons}
+        locale={locale}
+        canManage={canManage}
+        reason={reason}
+        actions={actions}
+      />
     </div>
   );
 }
 
-function PageHeader({ locale }: { locale: string }) {
+interface PageHeaderProps {
+  locale: string;
+  version: string | null;
+  /** Button „+ Neu“ nur mit Admin-Login */
+  showNew: boolean;
+  newOpen: boolean;
+  onNew: () => void;
+}
+
+function PageHeader({ locale, version, showNew, newOpen, onNew }: PageHeaderProps) {
   return (
-    <header class="d-flex justify-content-between align-items-center py-3 py-md-4">
-      <div class="title position-relative flex-grow-1 mb-1">
-        <h1 class="mb-0 pt-1 text-truncate">{t("addons.title", locale)}</h1>
+    <header class="d-flex justify-content-between align-items-center gap-3 py-3 py-md-4">
+      <div class="title position-relative flex-grow-1 min-w-0 mb-1">
+        <h1 class="mb-0 pt-1 text-truncate">
+          {t("addons.title", locale)}
+          {version && (
+            <span class="text-muted ms-2 evcc-addons-version" data-testid="addons-version">
+              v{version}
+            </span>
+          )}
+        </h1>
       </div>
+      {showNew && <NewButton locale={locale} open={newOpen} onClick={onNew} />}
     </header>
+  );
+}
+
+/** Wie evcc Config/NewDeviceButton (Plus + Text, grauer Rahmen); blendet „Addon installieren“ ein/aus */
+function NewButton({
+  locale,
+  open,
+  onClick,
+}: {
+  locale: string;
+  open: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      class={`evcc-addons-new-btn d-flex align-items-center text-nowrap${open ? " active" : ""}`}
+      data-testid="addons-new"
+      aria-expanded={open}
+      onClick={onClick}
+    >
+      <span
+        class="evcc-addons-new-icon me-1 flex-shrink-0"
+        dangerouslySetInnerHTML={{ __html: PLUS_ICON }}
+      />
+      <span>{t("manager.new", locale)}</span>
+    </button>
   );
 }
 
@@ -109,10 +179,11 @@ interface AddonListProps {
   list: Loadable<AddonInfo[]>;
   locale: string;
   canManage: boolean;
+  reason: SessionReason | null;
   actions: AddonActions;
 }
 
-function AddonList({ list, locale, canManage, actions }: AddonListProps) {
+function AddonList({ list, locale, canManage, reason, actions }: AddonListProps) {
   if (list.kind === "loading") return <p class="text-muted">{t("manager.loading", locale)}</p>;
   if (list.kind === "error") {
     return (
@@ -137,6 +208,7 @@ function AddonList({ list, locale, canManage, actions }: AddonListProps) {
           addon={addon}
           locale={locale}
           canManage={canManage}
+          reason={reason}
           actions={actions}
         />
       ))}

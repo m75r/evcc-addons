@@ -1,11 +1,34 @@
 {
   "id": "consumers",
   "name": { "de": "Verbraucher", "en": "Consumers" },
-  "version": "1.0.3",
+  "version": "1.1.0",
   "description": {
-    "de": "Monitoring und Steuerung von Verbrauchern",
-    "en": "Monitor and control consumers"
+    "de": "Zeigt Steckdosen und Verbraucher-Meter aus evcc mit Leistung und Energie live an. Steckdosen lassen sich direkt einschalten, ausschalten oder auf Smart stellen.",
+    "en": "Shows evcc smart sockets and consumer meters with live power and energy. Switch sockets on, off or to smart mode right away."
   },
   "apiVersion": 1,
-  "entry": "index.js"
+  "entry": "index.js",
+  "settings": [
+    {
+      "key": "showEnergy",
+      "type": "boolean",
+      "label": { "de": "Verbraucht anzeigen", "en": "Show consumption" },
+      "default": true
+    },
+    {
+      "key": "sort",
+      "type": "select",
+      "label": { "de": "Sortierung", "en": "Sort order" },
+      "default": "name-asc",
+      "options": [
+        { "value": "name-asc", "label": { "de": "Name A–Z", "en": "Name A–Z" } },
+        { "value": "name-desc", "label": { "de": "Name Z–A", "en": "Name Z–A" } },
+        {
+          "value": "power-desc",
+          "label": { "de": "Leistung absteigend", "en": "Power descending" }
+        },
+        { "value": "power-asc", "label": { "de": "Leistung aufsteigend", "en": "Power ascending" } }
+      ]
+    }
+  ]
 }

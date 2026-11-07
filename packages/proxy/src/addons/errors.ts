@@ -13,6 +13,7 @@ export type AddonErrorCode =
   | "api-version-unsupported"
   | "not-found"
   | "body-invalid"
+  | "settings-invalid"
   | "unsupported-media-type"
   | "login-required"
   | "admin-password-missing"

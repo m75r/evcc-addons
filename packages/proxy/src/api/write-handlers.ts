@@ -51,6 +51,22 @@ async function toggle(req: IncomingMessage, res: ServerResponse, ctx: ApiContext
   sendJson(res, 200, toAddonDto(addon, ctx.status));
 }
 
+async function saveSettings(
+  req: IncomingMessage,
+  res: ServerResponse,
+  ctx: ApiContext,
+  [id]: string[],
+) {
+  await requireAdmin(req, ctx.config.evccUrl);
+  const body = await readJsonBody(req, JSON_BODY_LIMIT);
+  if (!isRecord(body) || !isRecord(body.values)) {
+    throw new AddonError("body-invalid", "Erwartet { values: { … } }");
+  }
+  const addon = await ctx.store.setSettings(id, body.values);
+  ctx.logger.info("addon settings saved", { id, keys: Object.keys(body.values).join(",") });
+  sendJson(res, 200, toAddonDto(addon, ctx.status));
+}
+
 async function uninstall(
   req: IncomingMessage,
   res: ServerResponse,
@@ -67,5 +83,10 @@ export const writeRoutes: Route[] = [
   { method: "GET", pattern: /^\/addons-api\/session$/, handler: session },
   { method: "PUT", pattern: /^\/addons-api\/addons$/, handler: install },
   { method: "PATCH", pattern: /^\/addons-api\/addons\/([^/]+)$/, handler: toggle },
+  {
+    method: "PATCH",
+    pattern: /^\/addons-api\/addons\/([^/]+)\/settings$/,
+    handler: saveSettings,
+  },
   { method: "DELETE", pattern: /^\/addons-api\/addons\/([^/]+)$/, handler: uninstall },
 ];

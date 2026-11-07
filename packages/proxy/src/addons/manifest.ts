@@ -3,6 +3,7 @@ import type { AddonManifest, Localized } from "@evcc-addons/sdk";
 import { ADDON_API_VERSION } from "@evcc-addons/sdk";
 import { isRecord } from "../util.js";
 import { AddonError } from "./errors.js";
+import { parseSettingDefs } from "./settings.js";
 
 export const ADDON_ID_PATTERN = /^[a-z][a-z0-9-]{1,39}$/;
 const VERSION_PATTERN = /^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/;
@@ -23,10 +24,11 @@ export function parseManifest(raw: unknown): AddonManifest {
   if (raw.description !== undefined) {
     manifest.description = parseLocalized("description", raw.description);
   }
+  if (raw.settings !== undefined) manifest.settings = parseSettingDefs(raw.settings);
   return manifest;
 }
 
-function invalid(field: string, problem: string): AddonError {
+export function invalid(field: string, problem: string): AddonError {
   return new AddonError("manifest-invalid", `Ungültiges Manifest: ${field} ${problem}`, { field });
 }
 
@@ -41,7 +43,7 @@ function parseId(value: unknown): string {
   return value;
 }
 
-function parseLocalized(field: string, value: unknown): Localized {
+export function parseLocalized(field: string, value: unknown): Localized {
   if (typeof value === "string" && value.trim() !== "") return value;
   if (isRecord(value)) {
     const entries = Object.entries(value);

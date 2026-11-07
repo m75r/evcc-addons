@@ -80,7 +80,7 @@ sudo -u evcc-addons node /opt/evcc-addons/server.mjs install --config /etc/evcc-
 
 Wichtig: Immer als User `evcc-addons` ausführen, nie mit `sudo` als root. Sonst entstehen Dateien, die der Dienst nicht mehr ändern oder löschen kann. Der Befehl verweigert die Ausführung, wenn der aufrufende User nicht Eigentümer von `/var/lib/evcc-addons` ist.
 
-Variante B, im Browser: ZIP vom Pi holen (`scp pi:/opt/evcc-addons/addons/consumers-1.0.3.zip .`) und unter „Mehr“ → „Addons“ hochladen.
+Variante B, im Browser: ZIP vom Pi holen (`scp pi:/opt/evcc-addons/addons/consumers-1.1.0.zip .`) und unter „Mehr“ → „Addons“ → „+ Neu“ hochladen.
 
 ### Logs
 
@@ -112,17 +112,18 @@ Addons erscheinen nur, wenn evcc über den Proxy aufgerufen wird:
 ## Sicherheit
 
 - Addons laufen mit vollen Rechten im evcc-Fenster und können alles, was die evcc-Oberfläche kann. Nur vertrauenswürdige Addons installieren.
-- Installieren, Umschalten und Deinstallieren erfordern den evcc-Admin-Login. Geprüft wird serverseitig über `api/auth/status` von evcc.
+- Installieren, Umschalten, Einstellungen ändern und Deinstallieren erfordern den evcc-Admin-Login. Geprüft wird serverseitig über `api/auth/status` von evcc.
 - Ist die Authentifizierung in evcc deaktiviert, ist auch die Addon-Verwaltung offen.
 
 ## Addons verwalten
 
-Die Seite „Addons“ (Menü „Mehr“ → „Addons“, `#/addons`) listet alle installierten Addons mit Version, Beschreibung, Aktiv-Zustand und eventuellen Startfehlern. Lesen ist ohne Anmeldung möglich, Ändern nur mit dem Admin-Login von evcc.
+Die Seite „Addons“ (Menü „Mehr“ → „Addons“, `#/addons`) listet alle installierten Addons mit Version, Beschreibung, Aktiv-Zustand und eventuellen Startfehlern. Neben dem Titel steht in Grau die laufende Version von evcc-addons (z. B. „Addons v1.0.0“). Lesen ist ohne Anmeldung möglich, Ändern nur mit dem Admin-Login von evcc.
 
 - **Anmelden:** Ohne Login zeigt die Seite das Feld „Zum Verwalten anmelden“. Das Passwort ist das evcc-Admin-Passwort. Die Anmeldung gilt danach auch in evcc selbst (Menü „Mehr“ zeigt „Abmelden“), und „Abmelden“ in evcc beendet auch die Verwaltung. Der Proxy speichert kein Passwort, er fragt für jede Änderung `api/auth/status` bei evcc ab.
-- **Installieren:** ZIP-Datei auswählen und „Installieren“ drücken. Neu installierte Addons sind sofort aktiv, die Seite lädt dazu neu.
+- **Installieren:** „+ Neu“ rechts neben dem Titel blendet statt des Einleitungstexts das Formular „Addon installieren“ ein (erneuter Klick blendet es wieder aus). ZIP-Datei auswählen und „Installieren“ drücken. Neu installierte Addons sind sofort aktiv, die Seite lädt dazu neu.
 - **Aktualisieren:** Eine neuere ZIP desselben Addons hochladen. Die Seite meldet „Aktualisiert von <alt> auf <neu>“, der Aktiv-Zustand bleibt erhalten. Dieselbe Version erneut hochzuladen ist erlaubt („Neu installiert“).
 - **Deaktivieren/Aktivieren:** Schalter auf der Karte. Nach dem Neuladen ist das Addon (nicht) mehr geladen.
+- **Einstellungen:** Addons mit Einstellungen haben auf der Karte einen Button mit Schieberegler-Icon. Er öffnet das Modal „Einstellungen <Name>“. „Speichern“ übernimmt die Werte ohne Neuladen. Die Werte gelten für alle Geräte, ändern dürfen sie nur Admins. Ohne Login zeigt das Modal die Werte schreibgeschützt.
 - **Deinstallieren:** Button „Deinstallieren“ auf der Karte, mit Rückfrage.
 
 Ungültige Pakete werden mit einer Meldung abgelehnt: unzulässige Pfade (Zip-Slip), mehr als 10 MB oder 500 Dateien, fehlendes oder ungültiges `addon.json`, fehlende Einstiegsdatei oder eine nicht unterstützte `apiVersion`.
@@ -137,16 +138,24 @@ Hinweise:
 
 Das mitgelieferte Addon `consumers` fügt den Tab „Verbraucher“ hinzu (`#/addons/consumers`, unter 576 px im Menü „Mehr“). Alle Werte kommen live über den evcc-WebSocket.
 
-- **Schaltbar:** Ladepunkte mit Steckdosen-Charger (in evcc Feature „switchdevice“, z. B. Shelly-, Tasmota- oder FritzDECT-Steckdosen). Angezeigt werden Leistung, „Geladen (Session)“, Status (an/aus) und der Modus `Aus | Smart | Schnell`, der sich direkt umschalten lässt.
+- **Schaltbar:** Ladepunkte mit Steckdosen-Charger (in evcc Feature „switchdevice“, z. B. Shelly-, Tasmota- oder FritzDECT-Steckdosen). Angezeigt werden Leistung, „Geladen (Session)“ und Status (an/aus). Rechts im Kartenkopf stehen zwei Icon-Buttons, mit denen sich der Modus direkt umschalten lässt: ⏻ schaltet zwischen Schnell und Aus, ☀ zwischen Smart und Aus. Höchstens einer ist aktiv (invertiert dargestellt).
 - **Nur Messung:** die Verbraucher-Meter von evcc (`consumer` und `aux`, wie im Abschnitt „Verbraucher“ der evcc-Konfiguration) mit Leistung sowie „Verbraucht“ bzw. „Geladen (Session)“, je nachdem, was das Gerät liefert.
   - Leistung und „Verbraucht“ kommen live aus dem WebSocket.
-  - „Geladen (Session)“ und Lesefehler der Geräte (rot, Meldung als Tooltip) liefert evcc nur angemeldeten Admins. Das Addon fragt sie dann wie die evcc-Konfigurationsseite im evcc-Intervall ab (mindestens alle 5 s, nur solange die Seite sichtbar ist). Ohne Anmeldung erscheint stattdessen ein Hinweis.
+  - „Geladen (Session)“ und Lesefehler der Geräte liefert evcc nur angemeldeten Admins. Das Addon fragt sie dann wie die evcc-Konfigurationsseite im evcc-Intervall ab (mindestens alle 5 s, nur solange die Seite sichtbar ist). Ohne Anmeldung erscheint stattdessen ein Hinweis.
+  - Ist ein Messgerät nicht erreichbar, steht statt der Leistung ein graues Badge „offline“ mit der Gerätemeldung als Tooltip. Weil evcc den Gerätestatus nur Admins liefert, erscheint das Badge nur mit Admin-Login. Andere Lesefehler erscheinen rot, ebenfalls mit Tooltip.
+
+Leistung und „Geladen (Session)“ unter 0,5 W bzw. 0,5 Wh erscheinen als „–“ in Grau. „Verbraucht“ zeigt immer den Zählerstand.
+
+Einstellungen (Seite „Addons“ → Einstellungs-Button auf der Karte „Verbraucher“, ändern nur Admins, gelten für alle Geräte):
+
+- **Verbraucht anzeigen** (Standard: an): blendet die Energiewerte „Verbraucht“ und „Geladen (Session)“ auf beiden Kartentypen ein oder aus. Die Leistung bleibt immer sichtbar.
+- **Sortierung** (Standard: Name A–Z): Name A–Z, Name Z–A, Leistung absteigend oder Leistung aufsteigend. Sie gilt für „Schaltbar“ und „Nur Messung“ getrennt. Bei Leistung wird live umsortiert, Karten ohne Leistungswert stehen am Ende, bei gleicher Leistung entscheidet der Name.
 
 Die Karten zeigen die Geräte-Icons, die in evcc für den Verbraucher bzw. den Charger eingestellt sind (ohne Einstellung wie evcc: Stecker bzw. „Smart Consumer“). Die Icons stammen aus evcc (MIT-Lizenz) und lassen sich mit `node scripts/import-evcc-icons.mjs <pfad-zum-evcc-repo>` aktualisieren.
 
 Warum nur Ladepunkte schaltbar sind: evcc schaltet `consumer`-Meter nie und bietet dafür keine HTTP-Schnittstelle. Ein Gerät, das gesteuert werden soll (z. B. Waschmaschine an einer Steckdose), wird in evcc daher als **Ladepunkt mit Steckdosen-Charger** angelegt. Danach erscheint es unter „Schaltbar“. evcc legt die Steuer-Endpunkte für Ladepunkte nur beim Start an: Nach dem Anlegen eines neuen Ladepunkts **evcc neu starten**, sonst schlägt das Umschalten fehl.
 
-Die Modi entsprechen evcc: „Aus“ = `off`, „Smart“ = `smart` (PV-Überschuss bzw. Tarif), „Schnell“ = `now`. Die veralteten Modi `pv` und `minpv` werden als „Smart“ angezeigt.
+Die Buttons setzen die Modi von evcc: ⏻ aktiv = `now` (Schnell), ☀ aktiv = `smart` (PV-Überschuss bzw. Tarif), keiner aktiv = `off`. Ein Klick auf den aktiven Button schaltet aus. Die veralteten Modi `pv` und `minpv` gelten als Smart.
 
 ## Entwicklung
 

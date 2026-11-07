@@ -1,7 +1,7 @@
-import type { AddonApi } from "@evcc-addons/sdk";
+import type { AddonApi, SettingDef } from "@evcc-addons/sdk";
 import { describe, expect, it, vi } from "vitest";
 import type { AddonInfo } from "../src/addons-client.js";
-import { addonUrl, loadAddons } from "../src/runtime.js";
+import { addonUrl, loadAddons, toManifest } from "../src/runtime.js";
 
 function addon(id: string, enabled = true): AddonInfo {
   return {
@@ -12,8 +12,18 @@ function addon(id: string, enabled = true): AddonInfo {
     entry: "index.js",
     enabled,
     error: null,
+    settings: [],
+    settingValues: {},
   };
 }
+
+describe("toManifest", () => {
+  it("übernimmt settings nur, wenn welche deklariert sind", () => {
+    const settings: SettingDef[] = [{ key: "a", type: "boolean", label: "A", default: true }];
+    expect(toManifest({ ...addon("x"), settings }).settings).toEqual(settings);
+    expect(toManifest(addon("x"))).not.toHaveProperty("settings");
+  });
+});
 
 function deps(modules: Record<string, unknown>) {
   const report = vi.fn((_id: string, _ok: boolean, _message?: string) => Promise.resolve());

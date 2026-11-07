@@ -49,6 +49,8 @@ describe("ohne Login", () => {
     await proxy.proxy.store.install(addonZip());
     expect((await upload(addonZip(), {})).status).toBe(401);
     expect((await api("addons/hello", "PATCH", { enabled: false }, {})).status).toBe(401);
+    const settings = await api("addons/hello/settings", "PATCH", { values: {} }, {});
+    expect(settings.status).toBe(401);
     const res = await api("addons/hello", "DELETE", undefined, {});
     expect(res.status).toBe(401);
     expect(await errorCode(res)).toBe("login-required");
@@ -112,6 +114,77 @@ describe("mit Login", () => {
     const origin = await upload(addonZip(), { ...LOGIN, origin: "http://evil.example" });
     expect(origin.status).toBe(403);
     expect(await errorCode(origin)).toBe("origin-mismatch");
+  });
+});
+
+describe("PATCH /addons-api/addons/<id>/settings", () => {
+  const SETTINGS = [
+    { key: "showPv", type: "boolean", label: "PV", default: true },
+    {
+      key: "sort",
+      type: "select",
+      label: "Sortierung",
+      default: "a",
+      options: [
+        { value: "a", label: "A" },
+        { value: "b", label: "B" },
+      ],
+    },
+  ];
+
+  beforeEach(async () => {
+    await proxy.proxy.store.install(addonZip({ settings: SETTINGS }));
+  });
+
+  const save = (body: unknown, headers?: Record<string, string>) =>
+    api("addons/hello/settings", "PATCH", body, headers);
+
+  it("lehnt ohne Login mit 401 ab", async () => {
+    const res = await save({ values: { showPv: false } }, {});
+    expect(res.status).toBe(401);
+    expect(await errorCode(res)).toBe("login-required");
+  });
+
+  it("speichert mit Login und liefert die aufgelösten Werte", async () => {
+    const res = await save({ values: { showPv: false } });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({
+      id: "hello",
+      settingValues: { showPv: false, sort: "a" },
+    });
+    expect((await proxy.proxy.store.get("hello")).settings).toEqual({ showPv: false, sort: "a" });
+    expect(proxy.logs.join("\n")).toContain('msg="addon settings saved" id=hello keys=showPv');
+  });
+
+  it("antwortet 400 settings-invalid bei unbekanntem Schlüssel", async () => {
+    const res = await save({ values: { foo: true } });
+    expect(res.status).toBe(400);
+    expect(await res.json()).toMatchObject({
+      error: { code: "settings-invalid", message: "foo: unbekannte Einstellung" },
+    });
+  });
+
+  it("antwortet 400 body-invalid ohne values", async () => {
+    const res = await save({ showPv: false });
+    expect(res.status).toBe(400);
+    expect(await errorCode(res)).toBe("body-invalid");
+  });
+
+  it("antwortet 404 bei unbekanntem Addon", async () => {
+    const res = await api("addons/unknown/settings", "PATCH", { values: {} });
+    expect(res.status).toBe(404);
+  });
+
+  it("antwortet 413 too-large bei einem Body über 4096 B", async () => {
+    const res = await save({ values: { sort: "x".repeat(5000) } });
+    expect(res.status).toBe(413);
+    expect(await errorCode(res)).toBe("too-large");
+  });
+
+  it("lehnt einen fremden Origin ab", async () => {
+    const res = await save({ values: {} }, { ...LOGIN, origin: "http://evil.example" });
+    expect(res.status).toBe(403);
+    expect(await errorCode(res)).toBe("origin-mismatch");
   });
 });
 

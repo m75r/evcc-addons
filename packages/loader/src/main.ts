@@ -1,7 +1,7 @@
 // Bootstrap des Loaders im evcc-Fenster
 import { h, render } from "preact";
 import { createAddonApi } from "./addon-api.js";
-import { listAddons, managerClient, reportStatus } from "./addons-client.js";
+import { listAddons, managerClient, reportStatus, type AddonInfo } from "./addons-client.js";
 import { MORE_MENU, waitFor } from "./dom/anchors.js";
 import { keepInserted } from "./dom/keep-alive.js";
 import { locale, onEnvChange } from "./env.js";
@@ -14,7 +14,9 @@ import { NavRegistry } from "./nav/registry.js";
 import { currentPath, onRouteChange } from "./nav/router.js";
 import { errorText, PageHost } from "./page/host.js";
 import { loadAddons } from "./runtime.js";
+import { SettingsRegistry } from "./settings.js";
 import styles from "./styles.css";
+import { loaderVersion } from "./version.js";
 
 const STYLE_ID = "evcc-addons-style";
 
@@ -22,6 +24,7 @@ interface Core {
   host: PageHost;
   nav: NavRegistry;
   state: SharedLiveState;
+  settings: SettingsRegistry;
   addonsLoaded: Promise<void>;
 }
 
@@ -39,6 +42,8 @@ function registerManager(core: Core): void {
     whenLoaded: core.addonsLoaded,
     reload: () => window.location.reload(),
     confirm: (message: string) => window.confirm(message),
+    onSettingsSaved: (addon: AddonInfo) => core.settings.set(addon.id, addon.settingValues),
+    version: loaderVersion(),
   };
   core.host.register(
     ADDONS_PATH,
@@ -67,6 +72,7 @@ async function report(id: string, ok: boolean, message?: string): Promise<void> 
 async function startAddons(core: Core): Promise<void> {
   try {
     const list = await listAddons();
+    core.settings.load(list);
     await loadAddons(list, {
       report,
       createApi: (manifest) =>
@@ -117,6 +123,7 @@ export function start(): void {
     host,
     nav: new NavRegistry({ locale, currentPath }),
     state: createLiveState(),
+    settings: new SettingsRegistry(),
     addonsLoaded,
   };
   registerManager(core);

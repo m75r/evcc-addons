@@ -25,6 +25,7 @@ export function toManifest(addon: AddonInfo): AddonManifest {
     apiVersion: 1,
   };
   if (addon.description) manifest.description = addon.description;
+  if (addon.settings.length > 0) manifest.settings = addon.settings;
   return manifest;
 }
 

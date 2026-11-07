@@ -22,7 +22,8 @@ test("„Addons“ öffnet die Seite, „Laden“ blendet sie wieder aus", async
   await page.getByTestId("addons-more-item").click();
   await expect(page).toHaveURL(/#\/addons$/);
   const heading = page.locator("#evcc-addons-page h1");
-  await expect(heading).toHaveText("Addons");
+  // Hinter dem Titel steht die Version von evcc-addons (addons-version)
+  await expect(heading).toHaveText(/^Addons(v\S+)?$/);
   await expect(heading).toBeInViewport();
   await expect(page.locator(".more-menu")).not.toHaveClass(/open/);
   await expect(page.getByTestId("addons-more-item")).toHaveClass(/active/);

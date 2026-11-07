@@ -1,5 +1,29 @@
 import { describe, expect, it } from "vitest";
-import { formatEnergyKWh, formatEnergyWh, formatPower } from "../src/format.js";
+import {
+  displayEnergyWh,
+  displayPower,
+  formatEnergyKWh,
+  formatEnergyWh,
+  formatPower,
+} from "../src/format.js";
+
+describe("displayPower / displayEnergyWh", () => {
+  const blank = { text: "–", muted: true };
+
+  it.each([undefined, 0, 0.4, -0.4, Number.NaN])("zeigt %s als „–“ grau", (value) => {
+    expect(displayPower(value, "de")).toEqual(blank);
+    expect(displayEnergyWh(value, "de")).toEqual(blank);
+  });
+
+  it.each([
+    [0.5, "1 W", "1 Wh"],
+    [150, "150 W", "150 Wh"],
+    [2100, "2,1 kW", "2,1 kWh"],
+  ])("zeigt %s normal", (value, power, energy) => {
+    expect(displayPower(value, "de")).toEqual({ text: power, muted: false });
+    expect(displayEnergyWh(value, "de")).toEqual({ text: energy, muted: false });
+  });
+});
 
 describe("format", () => {
   it("formatiert Leistung wie evcc", () => {

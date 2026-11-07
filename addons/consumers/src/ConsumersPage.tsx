@@ -3,9 +3,17 @@ import type { AddonApi } from "@evcc-addons/sdk";
 import { useEffect, useState } from "preact/hooks";
 import { texts, type Texts } from "./i18n.js";
 import { MeterCard } from "./MeterCard.js";
-import { toMeterCards, toSwitchCards, type MeterCardData, type SwitchCardData } from "./model.js";
+import {
+  meterPower,
+  sortCards,
+  toMeterCards,
+  toSwitchCards,
+  type MeterCardData,
+  type SwitchCardData,
+} from "./model.js";
+import { useSettings, type ConsumerSettings } from "./settings.js";
 import { SwitchCard } from "./SwitchCard.js";
-import { useMeterStatus } from "./useMeterStatus.js";
+import { useMeterStatus, type MeterStatusState } from "./useMeterStatus.js";
 
 const KEYS = ["loadpoints", "consumers", "aux"] as const;
 
@@ -22,36 +30,47 @@ function useLiveVersion(api: AddonApi): number {
 
 export function ConsumersPage({ api }: { api: AddonApi }) {
   useLiveVersion(api);
+  const settings = useSettings(api);
   const locale = api.locale();
+  const t = texts(locale);
   const switches = toSwitchCards(api.state.get("loadpoints"), locale);
   const meters = toMeterCards(api.state.get("consumers"), api.state.get("aux"), locale);
   return (
     <div class="evcc-consumers" data-testid="consumers-page">
-      <SwitchSection api={api} cards={switches} locale={locale} t={texts(locale)} />
-      <MeterSection api={api} cards={meters} locale={locale} t={texts(locale)} />
+      <SwitchSection api={api} cards={switches} locale={locale} t={t} settings={settings} />
+      <MeterSection api={api} cards={meters} locale={locale} t={t} settings={settings} />
     </div>
   );
 }
 
 interface SectionProps<T> {
   api: AddonApi;
+  /** nach Name sortiert (Basisordnung) */
   cards: T[];
   locale: string;
   t: Texts;
+  settings: ConsumerSettings;
 }
 
-function SwitchSection({ api, cards, locale, t }: SectionProps<SwitchCardData>) {
+function SwitchSection({ api, cards, locale, t, settings }: SectionProps<SwitchCardData>) {
+  const sorted = sortCards(cards, settings.sort, locale, (card) => card.power);
   return (
     <>
       <h2 class="evcc-consumers-section">{t.switchable}</h2>
-      {cards.length === 0 ? (
+      {sorted.length === 0 ? (
         <p class="text-muted" data-testid="consumers-empty-switchable">
           {t.emptySwitchable}
         </p>
       ) : (
         <div class="evcc-consumers-grid" data-testid="consumers-switchable">
-          {cards.map((card) => (
-            <SwitchCard key={card.index} card={card} api={api} locale={locale} />
+          {sorted.map((card) => (
+            <SwitchCard
+              key={card.index}
+              card={card}
+              api={api}
+              locale={locale}
+              showEnergy={settings.showEnergy}
+            />
           ))}
         </div>
       )}
@@ -59,24 +78,51 @@ function SwitchSection({ api, cards, locale, t }: SectionProps<SwitchCardData>) 
   );
 }
 
-function MeterSection({ api, cards, locale, t }: SectionProps<MeterCardData>) {
+function MeterSection({ api, cards, locale, t, settings }: SectionProps<MeterCardData>) {
+  // Namen in Basisordnung, damit die Abfrage beim Umsortieren nicht neu startet
   const devices = useMeterStatus(api, cards.map((card) => card.name).filter(Boolean));
-  if (cards.length === 0) {
-    return (
-      <>
-        <h2 class="evcc-consumers-section">{t.measured}</h2>
-        <p class="text-muted" data-testid="consumers-empty-measured">
-          {t.emptyMeasured}
-        </p>
-      </>
-    );
-  }
+  const powerOf = (card: MeterCardData) => meterPower(card, devices.statuses[card.name]);
+  const sorted = sortCards(cards, settings.sort, locale, powerOf);
   return (
     <>
       <h2 class="evcc-consumers-section">{t.measured}</h2>
+      {sorted.length === 0 ? (
+        <p class="text-muted" data-testid="consumers-empty-measured">
+          {t.emptyMeasured}
+        </p>
+      ) : (
+        <>
+          <MeterHints devices={devices} t={t} showEnergy={settings.showEnergy} />
+          <div class="evcc-consumers-grid" data-testid="consumers-measured">
+            {sorted.map((card) => (
+              <MeterCard
+                key={card.name}
+                card={card}
+                status={devices.statuses[card.name]}
+                locale={locale}
+                showEnergy={settings.showEnergy}
+              />
+            ))}
+          </div>
+        </>
+      )}
+    </>
+  );
+}
+
+interface MeterHintsProps {
+  devices: MeterStatusState;
+  t: Texts;
+  showEnergy: boolean;
+}
+
+/** Login-Hinweis (nennt „Geladen“ nur, wenn die Zeile eingeblendet ist) und Abfragefehler */
+function MeterHints({ devices, t, showEnergy }: MeterHintsProps) {
+  return (
+    <>
       {devices.auth === "unauthorized" && (
         <p class="evcc-consumers-hint" data-testid="consumers-login-hint">
-          {t.loginHint}
+          {showEnergy ? t.loginHint : t.loginHintGeneric}
         </p>
       )}
       {devices.error && (
@@ -84,16 +130,6 @@ function MeterSection({ api, cards, locale, t }: SectionProps<MeterCardData>) {
           {t.statusError}: {devices.error}
         </p>
       )}
-      <div class="evcc-consumers-grid" data-testid="consumers-measured">
-        {cards.map((card) => (
-          <MeterCard
-            key={card.name}
-            card={card}
-            status={devices.statuses[card.name]}
-            locale={locale}
-          />
-        ))}
-      </div>
     </>
   );
 }

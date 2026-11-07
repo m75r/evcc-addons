@@ -66,3 +66,69 @@ describe("parseManifest", () => {
     expect(() => parseManifest(manifest({ entry: 3 }))).toThrow(/entry/);
   });
 });
+
+const BOOL_DEF = { key: "showPv", type: "boolean", label: { de: "PV", en: "PV" }, default: true };
+const SELECT_DEF = {
+  key: "sort",
+  type: "select",
+  label: "Sortierung",
+  default: "a",
+  options: [
+    { value: "a", label: "A" },
+    { value: "b", label: { de: "B", en: "B" } },
+  ],
+};
+
+function settingsError(settings: unknown): string {
+  try {
+    parseManifest(manifest({ settings }));
+    return "kein Fehler";
+  } catch (err) {
+    expect(err).toMatchObject({ code: "manifest-invalid" });
+    return (err as Error).message;
+  }
+}
+
+describe("parseManifest: settings", () => {
+  it("übernimmt ein gültiges Schema", () => {
+    const parsed = parseManifest(manifest({ settings: [BOOL_DEF, SELECT_DEF] }));
+    expect(parsed.settings).toEqual([BOOL_DEF, SELECT_DEF]);
+  });
+
+  it("lässt das Feld ohne settings weg", () => {
+    expect(parseManifest(manifest())).not.toHaveProperty("settings");
+  });
+
+  it.each([
+    ["keine Liste", { a: 1 }, "settings muss eine Liste sein"],
+    ["doppelter Key", [BOOL_DEF, { ...SELECT_DEF, key: "showPv" }], "settings[1].key"],
+    ["ungültiger Key", [{ ...BOOL_DEF, key: "1x" }], "settings[0].key"],
+    ["Key zu lang", [{ ...BOOL_DEF, key: "a".repeat(41) }], "settings[0].key"],
+    ["label fehlt", [{ ...BOOL_DEF, label: undefined }], "settings[0].label"],
+    ["falscher Default-Typ", [{ ...BOOL_DEF, default: "ja" }], "settings[0].default"],
+    [
+      "Default nicht in den Optionen",
+      [BOOL_DEF, { ...SELECT_DEF, default: "c" }],
+      "settings[1].default muss eine der options sein",
+    ],
+    ["leere Optionen", [{ ...SELECT_DEF, options: [] }], "settings[0].options"],
+    [
+      "doppelte Option",
+      [{ ...SELECT_DEF, options: [SELECT_DEF.options[0], SELECT_DEF.options[0]] }],
+      "settings[0].options[1].value",
+    ],
+    [
+      "Option zu lang",
+      [{ ...SELECT_DEF, options: [{ value: "x".repeat(41), label: "X" }] }],
+      "settings[0].options[0].value",
+    ],
+    [
+      "mehr als 20 Einträge",
+      Array.from({ length: 21 }, (_, i) => ({ ...BOOL_DEF, key: `k${i}` })),
+      "höchstens 20",
+    ],
+    ["unbekannter type", [{ ...BOOL_DEF, type: "number" }], "settings[0].type"],
+  ])("meldet manifest-invalid: %s", (_label, settings, expected) => {
+    expect(settingsError(settings)).toContain(expected);
+  });
+});

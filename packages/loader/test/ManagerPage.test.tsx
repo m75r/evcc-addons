@@ -1,6 +1,7 @@
 import { render } from "preact";
 import { act } from "preact/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { SettingValues } from "@evcc-addons/sdk";
 import {
   ApiError,
   type AddonInfo,
@@ -17,6 +18,26 @@ const ADDON: AddonInfo = {
   entry: "index.js",
   enabled: true,
   error: null,
+  settings: [],
+  settingValues: {},
+};
+
+const WITH_SETTINGS: AddonInfo = {
+  ...ADDON,
+  settings: [
+    { key: "showPv", type: "boolean", label: { de: "PV anzeigen", en: "Show PV" }, default: true },
+    {
+      key: "sort",
+      type: "select",
+      label: "Sortierung",
+      default: "a",
+      options: [
+        { value: "a", label: { de: "Name A–Z", en: "Name A–Z" } },
+        { value: "b", label: "Name Z–A" },
+      ],
+    },
+  ],
+  settingValues: { showPv: false, sort: "b" },
 };
 
 let root: HTMLElement;
@@ -34,13 +55,18 @@ function fakeClient(session: Session, overrides: Partial<ManagerClient> = {}): M
     getSession: vi.fn(() => Promise.resolve(session)),
     installAddon: vi.fn(() => Promise.resolve({ addon: ADDON, previousVersion: null })),
     setAddonEnabled: vi.fn(() => Promise.resolve(ADDON)),
+    saveAddonSettings: vi.fn((_id: string, values: SettingValues) =>
+      Promise.resolve({ ...WITH_SETTINGS, settingValues: { ...values } }),
+    ),
     uninstallAddon: vi.fn(() => Promise.resolve()),
     login: vi.fn(() => Promise.resolve()),
     ...overrides,
   };
 }
 
-async function mount(client: ManagerClient, reload = vi.fn(), confirm = () => true) {
+async function mount(client: ManagerClient, version: string | null = null) {
+  const reload = vi.fn();
+  const onSettingsSaved = vi.fn();
   await act(async () => {
     render(
       <ManagerPage
@@ -49,14 +75,16 @@ async function mount(client: ManagerClient, reload = vi.fn(), confirm = () => tr
         client={client}
         whenLoaded={Promise.resolve()}
         reload={reload}
-        confirm={confirm}
+        confirm={() => true}
+        onSettingsSaved={onSettingsSaved}
+        version={version}
       />,
       root,
     );
     await Promise.resolve();
   });
   await act(() => new Promise((resolve) => setTimeout(resolve, 0)));
-  return { reload };
+  return { reload, onSettingsSaved };
 }
 
 const q = (testId: string) => root.querySelector<HTMLElement>(`[data-testid="${testId}"]`);
@@ -69,6 +97,7 @@ async function upload(error: ApiError) {
     },
   );
   await mount(client);
+  await act(() => q("addons-new")?.click());
   const input = q("addons-install-file") as HTMLInputElement;
   const file = new File(["x"], "a.zip");
   Object.defineProperty(input, "files", { value: [file] });
@@ -81,18 +110,36 @@ async function upload(error: ApiError) {
 }
 
 describe("ManagerPage", () => {
-  it("zeigt bei canManage Upload, Schalter und Deinstallieren", async () => {
+  it("zeigt bei canManage „+ Neu“, Schalter und Deinstallieren", async () => {
     await mount(fakeClient({ canManage: true, reason: null }));
-    expect(q("addons-install")).not.toBeNull();
+    expect(q("addons-new")?.textContent).toBe("Neu");
+    expect(q("addons-new")?.querySelector("svg")).not.toBeNull();
+    expect(q("addons-install")).toBeNull();
+    expect(q("addons-subtitle")?.textContent).toContain("Addons erweitern evcc");
     expect(q("addons-login")).toBeNull();
     expect((q("addon-toggle") as HTMLInputElement).disabled).toBe(false);
     expect(q("addon-uninstall")).not.toBeNull();
+  });
+
+  it("„+ Neu“ blendet den Subtext aus und das Installieren ein, erneut wieder zurück", async () => {
+    await mount(fakeClient({ canManage: true, reason: null }));
+    const button = q("addons-new") as HTMLButtonElement;
+    expect(button.getAttribute("aria-expanded")).toBe("false");
+    await act(() => button.click());
+    expect(q("addons-install")).not.toBeNull();
+    expect(q("addons-subtitle")).toBeNull();
+    expect(button.getAttribute("aria-expanded")).toBe("true");
+    await act(() => button.click());
+    expect(q("addons-install")).toBeNull();
+    expect(q("addons-subtitle")).not.toBeNull();
   });
 
   it("zeigt ohne Login das Anmeldefeld und deaktivierte Schalter", async () => {
     await mount(fakeClient({ canManage: false, reason: "login-required" }));
     expect(q("addons-login")).not.toBeNull();
     expect(q("addons-install")).toBeNull();
+    expect(q("addons-new")).toBeNull();
+    expect(q("addons-subtitle")).not.toBeNull();
     expect((q("addon-toggle") as HTMLInputElement).disabled).toBe(true);
     expect(q("addon-uninstall")).toBeNull();
   });
@@ -180,5 +227,162 @@ describe("ManagerPage", () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
     expect(q("addon-action-error")?.textContent).toBe("Aktion fehlgeschlagen: Platte voll");
+  });
+
+  it("zeigt die Version neben dem Titel, nur wenn sie bekannt ist", async () => {
+    await mount(fakeClient({ canManage: true, reason: null }), "1.2.3");
+    expect(q("addons-version")?.textContent).toBe("v1.2.3");
+    render(null, root);
+    await mount(fakeClient({ canManage: true, reason: null }), null);
+    expect(q("addons-version")).toBeNull();
+  });
+});
+
+const ADMIN: Session = { canManage: true, reason: null };
+
+function settingsClient(session: Session = ADMIN, overrides: Partial<ManagerClient> = {}) {
+  return fakeClient(session, {
+    listAddons: vi.fn(() => Promise.resolve([WITH_SETTINGS])),
+    ...overrides,
+  });
+}
+
+const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
+const field = <T extends HTMLElement>(key: string) => q(`addon-setting-${key}`) as T;
+
+async function openSettings() {
+  await act(() => q("addon-settings")?.click());
+}
+
+async function clickSave() {
+  await act(async () => {
+    q("addon-settings-save")?.click();
+    await tick();
+  });
+}
+
+async function editSettings() {
+  await act(() => field<HTMLInputElement>("showPv").click());
+  await act(() => {
+    const select = field<HTMLSelectElement>("sort");
+    select.value = "a";
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+}
+
+describe("ManagerPage: Einstellungen", () => {
+  it("zeigt ohne Schema keinen Einstellungs-Button", async () => {
+    await mount(fakeClient(ADMIN));
+    expect(q("addon-settings")).toBeNull();
+  });
+
+  it("öffnet das Modal mit den aktuellen Werten", async () => {
+    await mount(settingsClient());
+    await openSettings();
+    expect(q("addon-settings-modal")?.textContent).toContain("Einstellungen Hallo Welt");
+    expect(field<HTMLInputElement>("showPv").checked).toBe(false);
+    expect(field<HTMLSelectElement>("sort").value).toBe("b");
+    expect(root.textContent).toContain("PV anzeigen");
+    expect(field<HTMLInputElement>("showPv").disabled).toBe(false);
+  });
+
+  it("speichert ohne Neuladen und meldet das zurückgegebene DTO", async () => {
+    const client = settingsClient();
+    const { reload, onSettingsSaved } = await mount(client);
+    await openSettings();
+    await editSettings();
+    await clickSave();
+    expect(client.saveAddonSettings).toHaveBeenCalledWith("hello", { showPv: true, sort: "a" });
+    expect(q("addon-settings-modal")).toBeNull();
+    expect(reload).not.toHaveBeenCalled();
+    expect(onSettingsSaved).toHaveBeenCalledWith({
+      ...WITH_SETTINGS,
+      settingValues: { showPv: true, sort: "a" },
+    });
+    await openSettings();
+    expect(field<HTMLInputElement>("showPv").checked).toBe(true);
+  });
+
+  it.each([
+    [new ApiError(500, "internal", "Platte voll"), "Speichern fehlgeschlagen: Platte voll"],
+    [
+      new ApiError(400, "settings-invalid", 'sort: unbekannte Option "foo"'),
+      'Speichern fehlgeschlagen: Ungültiger Wert für sort: unbekannte Option "foo"',
+    ],
+    [new ApiError(413, "too-large", "zu groß"), "Die Einstellungen sind zu groß (höchstens 4 KB)."],
+  ])("zeigt den Fehler %s im offenen Modal", async (error, text) => {
+    const { onSettingsSaved } = await mount(
+      settingsClient(ADMIN, { saveAddonSettings: vi.fn(() => Promise.reject(error)) }),
+    );
+    await openSettings();
+    await clickSave();
+    expect(q("addon-settings-error")?.textContent).toBe(`⚠ ${text}`);
+    expect(q("addon-settings-modal")).not.toBeNull();
+    expect(onSettingsSaved).not.toHaveBeenCalled();
+  });
+
+  it("schließt bei 401 und zeigt das Login-Formular", async () => {
+    const unauthorized = new ApiError(401, "login-required", "Bitte anmelden");
+    await mount(
+      settingsClient(ADMIN, { saveAddonSettings: vi.fn(() => Promise.reject(unauthorized)) }),
+    );
+    await openSettings();
+    await clickSave();
+    expect(q("addon-settings-modal")).toBeNull();
+    expect(q("addons-login")).not.toBeNull();
+  });
+
+  it("ist ohne Login schreibgeschützt", async () => {
+    await mount(settingsClient({ canManage: false, reason: "login-required" }));
+    await openSettings();
+    expect(field<HTMLInputElement>("showPv").disabled).toBe(true);
+    expect(field<HTMLSelectElement>("sort").disabled).toBe(true);
+    expect(q("addon-settings-readonly")?.textContent).toBe("Zum Ändern in evcc anmelden.");
+    expect(q("addon-settings-save")).toBeNull();
+    expect(q("addon-settings-cancel")?.textContent).toBe("Schließen");
+  });
+
+  it("zeigt im Demo-Modus den passenden Hinweis", async () => {
+    await mount(settingsClient({ canManage: false, reason: "demo-mode" }));
+    await openSettings();
+    expect(q("addon-settings-readonly")?.textContent).toBe(
+      "evcc läuft im Demo-Modus, Addons lassen sich nicht verwalten.",
+    );
+  });
+
+  it.each([
+    [
+      "Esc",
+      () =>
+        q("addon-settings-modal")?.dispatchEvent(
+          new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+        ),
+    ],
+    ["✕", () => q("addon-settings-close")?.click()],
+    ["Abbrechen", () => q("addon-settings-cancel")?.click()],
+    ["Backdrop", () => q("addon-settings-modal")?.click()],
+  ])("schließt per %s ohne Speichern", async (_label, close) => {
+    const client = settingsClient();
+    await mount(client);
+    await openSettings();
+    await act(() => void close());
+    expect(q("addon-settings-modal")).toBeNull();
+    expect(client.saveAddonSettings).not.toHaveBeenCalled();
+  });
+
+  it("schließt nicht bei Klick in den Dialog", async () => {
+    await mount(settingsClient());
+    await openSettings();
+    await act(() => root.querySelector<HTMLElement>(".modal-content")?.click());
+    expect(q("addon-settings-modal")).not.toBeNull();
+  });
+
+  it("setzt body.modal-open und entfernt es wieder", async () => {
+    await mount(settingsClient());
+    await openSettings();
+    expect(document.body.classList.contains("modal-open")).toBe(true);
+    expect(document.activeElement).toBe(q("addon-settings-modal"));
+    await act(() => q("addon-settings-close")?.click());
+    expect(document.body.classList.contains("modal-open")).toBe(false);
   });
 });

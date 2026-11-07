@@ -1,5 +1,5 @@
 // Ablage installierter Addons: <dataDir>/addons/<id>/… und <dataDir>/state.json
-import type { AddonManifest } from "@evcc-addons/sdk";
+import type { AddonManifest, SettingValues } from "@evcc-addons/sdk";
 import { randomBytes } from "node:crypto";
 import { mkdir, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
@@ -8,11 +8,14 @@ import { errorMessage, isRecord } from "../util.js";
 import { AddonError } from "./errors.js";
 import { isValidAddonId, parseManifest } from "./manifest.js";
 import { MANIFEST_FILE, readAddonZip, type PackageLimits } from "./package.js";
+import { keepValidValues, resolveSettingValues, validateSettingValues } from "./settings.js";
 import type { StatusRegistry } from "./status.js";
 
 export interface InstalledAddon {
   manifest: AddonManifest;
   enabled: boolean;
+  /** Einstellungen, mit Defaults aufgelöst */
+  settings: SettingValues;
 }
 
 export interface InstallResult {
@@ -20,8 +23,14 @@ export interface InstallResult {
   previousVersion: string | null;
 }
 
+/** Eintrag je Addon in state.json; `settings` enthält nur ausdrücklich gesetzte Werte */
+interface StoredEntry {
+  enabled: boolean;
+  settings?: Record<string, unknown>;
+}
+
 interface StoreState {
-  addons: Record<string, { enabled: boolean }>;
+  addons: Record<string, StoredEntry>;
 }
 
 export interface StoreOptions {
@@ -56,7 +65,7 @@ export class AddonStore {
         this.opts.logger.warn("addon manifest unreadable", { id, error: errorMessage(err) });
         return null;
       });
-      if (manifest) addons.push({ manifest, enabled: state.addons[id]?.enabled ?? true });
+      if (manifest) addons.push(toInstalled(manifest, state.addons[id]));
     }
     return addons;
   }
@@ -64,7 +73,7 @@ export class AddonStore {
   async get(id: string): Promise<InstalledAddon> {
     const manifest = await this.readManifest(id);
     const state = await this.readState();
-    return { manifest, enabled: state.addons[id]?.enabled ?? true };
+    return toInstalled(manifest, state.addons[id]);
   }
 
   install(buffer: Uint8Array): Promise<InstallResult> {
@@ -73,9 +82,23 @@ export class AddonStore {
 
   setEnabled(id: string, enabled: boolean): Promise<InstalledAddon> {
     return this.serialized(async () => {
-      const addon = await this.get(id);
-      await this.updateState((state) => (state.addons[id] = { enabled }));
-      return { ...addon, enabled };
+      const { manifest } = await this.get(id);
+      const entry = await this.mergeEntry(id, (prev) => ({ ...prev, enabled }));
+      return toInstalled(manifest, entry);
+    });
+  }
+
+  /** Speichert eine Teilmenge der Einstellungen; ungültige Werte ergeben `settings-invalid` */
+  setSettings(id: string, values: unknown): Promise<InstalledAddon> {
+    return this.serialized(async () => {
+      try {
+        return await this.doSetSettings(id, values);
+      } catch (err) {
+        if (err instanceof AddonError) throw err;
+        throw new Error(`Einstellungen von ${id} nicht gespeichert: ${errorMessage(err)}`, {
+          cause: err,
+        });
+      }
     });
   }
 
@@ -115,12 +138,38 @@ export class AddonStore {
       });
     }
     const enabled = previous?.enabled ?? true;
-    await this.updateState((state) => (state.addons[id] = { enabled }));
+    const entry = await this.mergeEntry(id, (prev) => ({ ...prev, enabled }));
     this.opts.status?.clear(id);
     return {
-      addon: { manifest: pkg.manifest, enabled },
+      addon: toInstalled(pkg.manifest, entry),
       previousVersion: previous?.manifest.version ?? null,
     };
+  }
+
+  /** Mischt mit den roh gespeicherten Werten, damit Defaults nie in state.json landen */
+  private async doSetSettings(id: string, values: unknown): Promise<InstalledAddon> {
+    const { manifest } = await this.get(id);
+    const defs = manifest.settings ?? [];
+    const input = validateSettingValues(defs, values);
+    const entry = await this.mergeEntry(id, (prev) => ({
+      ...prev,
+      enabled: prev?.enabled ?? true,
+      settings: { ...keepValidValues(defs, prev?.settings), ...input },
+    }));
+    return toInstalled(manifest, entry);
+  }
+
+  /** Ersetzt den Eintrag einer id durch `change(bisheriger Eintrag)` und liefert ihn zurück */
+  private async mergeEntry(
+    id: string,
+    change: (prev: StoredEntry | undefined) => StoredEntry,
+  ): Promise<StoredEntry> {
+    let entry: StoredEntry = { enabled: true };
+    await this.updateState((state) => {
+      entry = change(state.addons[id]);
+      state.addons[id] = entry;
+    });
+    return entry;
   }
 
   /** Bisher installierte Version; ein unlesbares altes Manifest wird überschrieben */
@@ -215,6 +264,15 @@ export class AddonStore {
     this.queue = run.catch(() => undefined);
     return run;
   }
+}
+
+/** Manifest und gespeicherter Eintrag → InstalledAddon mit aufgelösten Einstellungen */
+function toInstalled(manifest: AddonManifest, entry: StoredEntry | undefined): InstalledAddon {
+  return {
+    manifest,
+    enabled: entry?.enabled ?? true,
+    settings: resolveSettingValues(manifest.settings ?? [], entry?.settings),
+  };
 }
 
 function notFound(id: string): AddonError {

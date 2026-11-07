@@ -1,5 +1,6 @@
 // Reine Umrechnung der evcc-Live-Daten in Kartendaten
 import type { MeterStatus } from "./meter-status.js";
+import type { SortOrder } from "./settings.js";
 
 export type Mode = "off" | "smart" | "now";
 
@@ -29,6 +30,15 @@ type Raw = Record<string, unknown>;
 const isObject = (value: unknown): value is Raw => typeof value === "object" && value !== null;
 const num = (value: unknown) => (typeof value === "number" ? value : undefined);
 const str = (value: unknown) => (typeof value === "string" ? value : "");
+
+/** Modus-Buttons im Kartenkopf: ⏻ (now/off) und ☀ (smart/off) */
+export type ModeButton = "power" | "smart";
+
+/** Ein aktiver Button schaltet aus, sonst auf seinen Modus */
+export function nextMode(current: Mode | null, button: ModeButton): Mode {
+  const target: Mode = button === "power" ? "now" : "smart";
+  return current === target ? "off" : target;
+}
 
 /** evcc kennt nur off/smart/now; die veralteten Werte pv und minpv gelten als smart */
 export function normalizeMode(mode: unknown): Mode | null {
@@ -73,8 +83,39 @@ function meterCards(list: unknown, defaultIcon: string): MeterCardData[] {
   }));
 }
 
+/** Basisordnung nach Name, auch für die Abfrage-Reihenfolge der Gerätewerte */
 function sortByTitle<T extends { title: string }>(cards: T[], locale: string): T[] {
   return [...cards].sort((a, b) => a.title.localeCompare(b.title, locale));
+}
+
+/**
+ * Anzeige-Reihenfolge je Abschnitt. Bei Leistung stehen Karten ohne Wert (oder offline) in beiden
+ * Richtungen am Ende, Gleichstand entscheidet der Name A–Z.
+ */
+export function sortCards<T extends { title: string }>(
+  cards: T[],
+  order: SortOrder,
+  locale: string,
+  powerOf: (card: T) => number | undefined,
+): T[] {
+  const byName = (a: T, b: T) => a.title.localeCompare(b.title, locale);
+  if (order === "name-asc") return [...cards].sort(byName);
+  if (order === "name-desc") return [...cards].sort((a, b) => byName(b, a));
+  const direction = order === "power-desc" ? -1 : 1;
+  return [...cards].sort((a, b) => comparePower(powerOf(a), powerOf(b), direction) || byName(a, b));
+}
+
+function comparePower(a: number | undefined, b: number | undefined, direction: number): number {
+  if (a === undefined || b === undefined) {
+    return (a === undefined ? 1 : 0) - (b === undefined ? 1 : 0);
+  }
+  return (a - b) * direction;
+}
+
+/** Leistung einer Messkarte für die Sortierung; offline (Lesefehler) ergibt undefined */
+export function meterPower(card: MeterCardData, status?: MeterStatus): number | undefined {
+  if (status?.power?.error) return undefined;
+  return card.power ?? status?.power?.value;
 }
 
 export type MeterRowKind = "power" | "energy" | "chargedEnergy";
@@ -89,11 +130,17 @@ export interface MeterRow {
 /**
  * Zeilen wie evcc DeviceTags: Leistung immer, „Verbraucht“ und „Geladen (Session)“ nur, wenn
  * das Gerät sie liefert. Live-Werte aus dem WebSocket haben Vorrang vor dem Gerätestatus.
+ * Mit `showEnergy = false` (Einstellung „Verbraucht anzeigen“) fehlen beide Energiezeilen.
  */
-export function meterRows(card: MeterCardData, status?: MeterStatus): MeterRow[] {
+export function meterRows(
+  card: MeterCardData,
+  status?: MeterStatus,
+  showEnergy = true,
+): MeterRow[] {
   const rows: MeterRow[] = [
     { kind: "power", value: card.power ?? status?.power?.value, error: status?.power?.error },
   ];
+  if (!showEnergy) return rows;
   if (card.energyKWh !== undefined || status?.energy) {
     rows.push({
       kind: "energy",

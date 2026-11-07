@@ -40,6 +40,46 @@ export interface LiveState {
   subscribe(keyPrefix: string, cb: (value: unknown) => void): () => void;
 }
 
+/** Wert einer Einstellung */
+export type SettingValue = boolean | string;
+
+/** Werte aller Einstellungen eines Addons, je `key` */
+export type SettingValues = Record<string, SettingValue>;
+
+/** Auswahlmöglichkeit einer Einstellung vom Typ `select` */
+export interface SettingOption {
+  value: string;
+  label: Localized;
+}
+
+/** Ja/Nein-Einstellung, dargestellt als Schalter */
+export interface BooleanSettingDef {
+  key: string;
+  type: "boolean";
+  label: Localized;
+  default: boolean;
+}
+
+/** Auswahl aus festen Werten, dargestellt als Auswahlliste */
+export interface SelectSettingDef {
+  key: string;
+  type: "select";
+  label: Localized;
+  default: string;
+  options: SettingOption[];
+}
+
+/** Eintrag in `addon.json` → `settings` */
+export type SettingDef = BooleanSettingDef | SelectSettingDef;
+
+/** Werte aus der Seite „Addons“; Änderungen im selben Fenster meldet onChange */
+export interface AddonSettings {
+  get(key: string): SettingValue | undefined;
+  all(): SettingValues;
+  /** Meldet gespeicherte Änderungen, gibt die Abmeldefunktion zurück */
+  onChange(cb: (values: SettingValues) => void): () => void;
+}
+
 /** API, die `activate` erhält */
 export interface AddonApi {
   id: string;
@@ -47,6 +87,8 @@ export interface AddonApi {
   addMoreMenuItem(item: NavItem): void;
   registerPage(page: PageDef): void;
   state: LiveState;
+  /** Einstellungen des Addons (aus `addon.json` → `settings`) */
+  settings: AddonSettings;
   /** Ruft `api/<path>` von evcc relativ zur aktuellen Seite auf */
   evccApi(path: string, init?: RequestInit): Promise<Response>;
   locale(): string;
@@ -62,6 +104,8 @@ export interface AddonManifest {
   description?: Localized;
   entry: string;
   apiVersion: number;
+  /** Einstellungen, die ein Admin auf der Seite „Addons“ ändert */
+  settings?: SettingDef[];
 }
 
 /** Signatur des Exports `activate` eines Addons */

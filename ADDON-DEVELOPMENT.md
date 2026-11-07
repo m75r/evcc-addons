@@ -36,8 +36,53 @@ Die Dateien eines Addons liefert der Proxy unter `/addons-static/<id>/<pfad>` au
 | `description` | nein    | wie `name`                                                                                       |
 | `apiVersion`  | ja      | `1`                                                                                              |
 | `entry`       | ja      | relativer Pfad auf eine `.js`- oder `.mjs`-Datei im Paket                                        |
+| `settings`    | nein    | Einstellungen, die ein Admin auf der Seite „Addons“ ändert, siehe [Einstellungen](#einstellungen) |
 
 Texte vom Typ `Localized` werden so aufgelöst: exakte Sprache (`de-DE`), dann Basissprache (`de`), dann `en`, dann der erste Eintrag.
+
+## Einstellungen
+
+Ein Addon kann in `addon.json` Einstellungen deklarieren. Die Seite „Addons“ zeigt dann auf der Karte des Addons einen Einstellungs-Button, der ein Modal mit einem Formular öffnet. Das Formular entsteht aus dem Schema. Es funktioniert deshalb auch für deaktivierte oder beim Start fehlgeschlagene Addons.
+
+```json
+"settings": [
+  { "key": "showEnergy", "type": "boolean", "label": { "de": "Verbraucht anzeigen", "en": "Show consumption" }, "default": true },
+  {
+    "key": "sort",
+    "type": "select",
+    "label": { "de": "Sortierung", "en": "Sort order" },
+    "default": "name-asc",
+    "options": [
+      { "value": "name-asc", "label": "Name A–Z" },
+      { "value": "name-desc", "label": "Name Z–A" }
+    ]
+  }
+]
+```
+
+Regeln (sonst lehnt die Installation das Paket mit `manifest-invalid` ab, die Meldung nennt das Feld, z. B. `settings[1].default`):
+
+- höchstens 20 Einträge, `key` passt auf `^[a-zA-Z][a-zA-Z0-9_-]{0,39}$` und ist eindeutig
+- `label` ist ein `Localized`
+- `type: "boolean"`: Schalter, `default` ist `true` oder `false`
+- `type: "select"`: Auswahlliste mit 1–20 `options`. Jede Option hat einen eindeutigen `value` (Text, 1–40 Zeichen) und ein `label` (`Localized`). `default` ist einer der `value`s.
+
+Speicherung und Rechte:
+
+- Die Werte liegen im Proxy in `state.json` unter `addons.<id>.settings` und gelten damit für alle Geräte.
+- Lesen darf jeder, ändern nur ein in evcc angemeldeter Admin (`PATCH /addons-api/addons/<id>/settings` mit `{ "values": { … } }`).
+- Gespeichert werden nur ausdrücklich gesetzte Werte. Fehlende Werte erhalten den `default`, auch wenn ein Update ihn ändert.
+- Aktivieren, Deaktivieren und Updates behalten die Werte. Deinstallieren löscht sie.
+- Kennt ein Update einen Schlüssel nicht mehr oder ist ein gespeicherter Wert nicht mehr gültig (z. B. eine entfernte Option), fällt er beim Lesen weg.
+
+Lesen im Addon:
+
+```ts
+const show = api.settings.get("showEnergy") !== false;
+const off = api.settings.onChange((values) => render(values));
+```
+
+Wer ein Addon mit Einstellungen auch in älteren Versionen von evcc-addons ohne `api.settings` installierbar halten will, prüft vorher, ob `api.settings` vorhanden ist, und nutzt sonst die Defaults.
 
 ## `activate(api)`
 
@@ -72,6 +117,9 @@ export const activate: ActivateFn = (api) => {
 | `registerPage(page)`         | Seite unter `#/addons/<id>` bzw. `#/addons/<id>/<page.path>`. Über dem Inhalt steht eine Kopfzeile mit `page.title`                                              |
 | `state.get(key?)`            | aktueller Wert unter einem Punkt-Schlüssel, z. B. `loadpoints.0.chargePower`, ohne Schlüssel der Gesamtzustand                                                   |
 | `state.subscribe(prefix, cb)`| `cb(value)` bei jeder Änderung unter `prefix` (und sofort, wenn schon Daten vorliegen). Gibt die Abmeldefunktion zurück                                            |
+| `settings.get(key)`          | Wert einer Einstellung aus `addon.json` → `settings` (mit Default), `undefined` bei unbekanntem Schlüssel                                                        |
+| `settings.all()`             | alle Einstellungen als Objekt `{ key: wert }` (Kopie)                                                                                                              |
+| `settings.onChange(cb)`      | `cb(values)` nach dem Speichern auf der Seite „Addons“ im selben Fenster. Andere Fenster und Geräte sehen Änderungen erst nach dem nächsten Laden. Gibt die Abmeldefunktion zurück |
 | `evccApi(path, init?)`       | `fetch` auf `api/<path>` von evcc, relativ zur Seite, z. B. `evccApi("loadpoints/1/mode/now", { method: "POST" })`                                                |
 | `locale()`                   | Sprache der evcc-Oberfläche (`<html lang>`)                                                                                                                         |
 | `theme()`                    | `"light"` oder `"dark"`                                                                                                                                             |

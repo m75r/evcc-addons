@@ -4,5 +4,13 @@
   "version": "0.1.0",
   "description": "Fixture für die E2E-Tests",
   "apiVersion": 1,
-  "entry": "index.js"
+  "entry": "index.js",
+  "settings": [
+    {
+      "key": "showPv",
+      "type": "boolean",
+      "label": { "de": "PV anzeigen", "en": "Show PV" },
+      "default": true
+    }
+  ]
 }

@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { meterRows, normalizeMode, toMeterCards, toSwitchCards } from "../src/model.js";
+import {
+  meterPower,
+  meterRows,
+  nextMode,
+  normalizeMode,
+  sortCards,
+  toMeterCards,
+  toSwitchCards,
+} from "../src/model.js";
+import type { SortOrder } from "../src/settings.js";
 
 const loadpoints = [
   { title: "Carport", chargePower: 11000, mode: "now" },
@@ -140,5 +149,74 @@ describe("meterRows", () => {
       value: 5,
       error: undefined,
     });
+  });
+
+  it("lässt „Verbraucht“ und „Geladen (Session)“ bei showEnergy = false weg", () => {
+    const withEnergy = { ...card, energyKWh: 79.8 };
+    const status = { chargedEnergy: { value: 0.313 } };
+    expect(meterRows(withEnergy, status, false).map((r) => r.kind)).toEqual(["power"]);
+    expect(meterRows(withEnergy, status, true).map((r) => r.kind)).toEqual([
+      "power",
+      "energy",
+      "chargedEnergy",
+    ]);
+  });
+});
+
+describe("meterPower", () => {
+  const card = { name: "a", title: "A", icon: "generic" };
+
+  it("nimmt den Live-Wert, sonst den Gerätestatus", () => {
+    expect(meterPower({ ...card, power: 24 }, { power: { value: 5 } })).toBe(24);
+    expect(meterPower(card, { power: { value: 5 } })).toBe(5);
+    expect(meterPower(card)).toBeUndefined();
+  });
+
+  it("liefert bei Lesefehler undefined", () => {
+    expect(meterPower({ ...card, power: 0 }, { power: { value: 0, error: "timeout" } })).toBe(
+      undefined,
+    );
+  });
+});
+
+describe("nextMode", () => {
+  it.each([
+    ["now", "power", "off"],
+    ["now", "smart", "smart"],
+    ["smart", "power", "now"],
+    ["smart", "smart", "off"],
+    ["off", "power", "now"],
+    ["off", "smart", "smart"],
+    [null, "power", "now"],
+    [null, "smart", "smart"],
+  ] as const)("%s + %s → %s", (current, button, expected) => {
+    expect(nextMode(current, button)).toBe(expected);
+  });
+});
+
+describe("sortCards", () => {
+  const cards = [
+    { title: "Berta", power: 100 },
+    { title: "Anton", power: undefined },
+    { title: "Dora", power: 100 },
+    { title: "Cäsar", power: 0 },
+    { title: "Emil", power: 2000 },
+  ];
+  const order = (sort: SortOrder) =>
+    sortCards(cards, sort, "de", (c) => c.power).map((c) => c.title);
+
+  it("sortiert nach Name auf- und absteigend", () => {
+    expect(order("name-asc")).toEqual(["Anton", "Berta", "Cäsar", "Dora", "Emil"]);
+    expect(order("name-desc")).toEqual(["Emil", "Dora", "Cäsar", "Berta", "Anton"]);
+  });
+
+  it("sortiert nach Leistung, ohne Wert am Ende, Gleichstand nach Name", () => {
+    expect(order("power-desc")).toEqual(["Emil", "Berta", "Dora", "Cäsar", "Anton"]);
+    expect(order("power-asc")).toEqual(["Cäsar", "Berta", "Dora", "Emil", "Anton"]);
+  });
+
+  it("ändert die Eingabe nicht", () => {
+    order("name-desc");
+    expect(cards[0].title).toBe("Berta");
   });
 });

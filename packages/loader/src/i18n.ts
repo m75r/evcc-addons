@@ -12,6 +12,11 @@ export function localize(value: Localized | undefined, lang: string): string {
 export const MESSAGES = {
   "addons.title": { de: "Addons", en: "Addons" },
   "addons.empty": { de: "Noch keine Addons installiert.", en: "No addons installed yet." },
+  "addons.subtitle": {
+    de: "Addons erweitern evcc um eigene Tabs, Seiten und Menüeinträge. Installieren, Einstellen und Deinstallieren ist nur mit dem Admin-Login von evcc möglich.",
+    en: "Addons extend evcc with their own tabs, pages and menu items. Installing, configuring and uninstalling requires the evcc admin login.",
+  },
+  "manager.new": { de: "Neu", en: "New" },
   "page.notFound": { de: "Seite nicht gefunden", en: "Page not found" },
   "page.mountError": {
     de: "Die Seite konnte nicht angezeigt werden:",
@@ -47,6 +52,24 @@ export const MESSAGES = {
     en: "Really uninstall {name}?",
   },
   "manager.actionError": { de: "Aktion fehlgeschlagen: {message}", en: "Action failed: {message}" },
+  "manager.settings": { de: "Einstellungen", en: "Settings" },
+  "manager.settings.title": { de: "Einstellungen {name}", en: "Settings {name}" },
+  "manager.settings.save": { de: "Speichern", en: "Save" },
+  "manager.settings.saving": { de: "Wird gespeichert …", en: "Saving …" },
+  "manager.settings.cancel": { de: "Abbrechen", en: "Cancel" },
+  "manager.settings.close": { de: "Schließen", en: "Close" },
+  "manager.settings.readonly": {
+    de: "Zum Ändern in evcc anmelden.",
+    en: "Log in to evcc to change settings.",
+  },
+  "manager.settings.error": {
+    de: "Speichern fehlgeschlagen: {message}",
+    en: "Saving failed: {message}",
+  },
+  "manager.settings.tooLarge": {
+    de: "Die Einstellungen sind zu groß (höchstens 4 KB).",
+    en: "The settings are too large (4 KB max).",
+  },
   "login.title": { de: "Zum Verwalten anmelden", en: "Log in to manage addons" },
   "login.password": { de: "Admin-Passwort von evcc", en: "evcc admin password" },
   "login.button": { de: "Anmelden", en: "Log in" },
@@ -99,6 +122,10 @@ export const MESSAGES = {
   "error.api-version-unsupported": {
     de: "Das Addon benötigt eine neuere Addon-API.",
     en: "The addon requires a newer addon API.",
+  },
+  "error.settings-invalid": {
+    de: "Ungültiger Wert für {message}",
+    en: "Invalid value for {message}",
   },
   "error.zip-invalid": {
     de: "Die Datei ist keine gültige ZIP-Datei.",

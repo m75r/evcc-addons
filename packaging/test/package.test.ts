@@ -44,7 +44,7 @@ describe("Paket-Metadaten", () => {
     for (const path of [
       "./opt/evcc-addons/server.mjs",
       "./opt/evcc-addons/public/loader.js",
-      "./opt/evcc-addons/addons/consumers-1.0.3.zip",
+      "./opt/evcc-addons/addons/consumers-1.1.0.zip",
       "./opt/evcc-addons/addons/hello-0.1.0.zip",
       "./usr/lib/systemd/system/evcc-addons.service",
       "./etc/evcc-addons/config.json",
@@ -92,7 +92,7 @@ set -e
 dpkg -i --force-depends /pkg/${DEB}
 echo "user=$(getent passwd evcc-addons | cut -d: -f1)"
 echo "owner=$(stat -c %U /var/lib/evcc-addons)"
-su -s /bin/sh evcc-addons -c "node /opt/evcc-addons/server.mjs install --config /etc/evcc-addons/config.json /opt/evcc-addons/addons/consumers-1.0.3.zip"
+su -s /bin/sh evcc-addons -c "node /opt/evcc-addons/server.mjs install --config /etc/evcc-addons/config.json /opt/evcc-addons/addons/consumers-1.1.0.zip"
 node /opt/evcc-addons/server.mjs --config /etc/evcc-addons/config.json > /tmp/proxy.log 2>&1 &
 PROXY=$!
 node -e '

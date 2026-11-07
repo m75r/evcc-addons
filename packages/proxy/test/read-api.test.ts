@@ -37,8 +37,31 @@ describe("GET /addons-api/addons", () => {
         entry: "index.js",
         enabled: true,
         error: "Error: kaputt",
+        settings: [],
+        settingValues: {},
       },
     ]);
+  });
+
+  it("liefert Schema und aufgelöste Werte", async () => {
+    const settings = [
+      { key: "showPv", type: "boolean", label: "PV", default: true },
+      {
+        key: "sort",
+        type: "select",
+        label: "Sortierung",
+        default: "a",
+        options: [
+          { value: "a", label: "A" },
+          { value: "b", label: "B" },
+        ],
+      },
+    ];
+    await proxy.proxy.store.install(addonZip({ settings }));
+    await proxy.proxy.store.setSettings("hello", { sort: "b" });
+    const res = await fetch(`${proxy.url}/addons-api/addons`);
+    const [addon] = (await res.json()) as Record<string, unknown>[];
+    expect(addon).toMatchObject({ settings, settingValues: { showPv: true, sort: "b" } });
   });
 });
 

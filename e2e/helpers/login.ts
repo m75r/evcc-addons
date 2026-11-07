@@ -9,5 +9,15 @@ export async function loginViaUi(page: Page, password = ADMIN_PASSWORD): Promise
   const reloaded = page.waitForEvent("load");
   await form.getByRole("button", { name: "Anmelden" }).click();
   await reloaded;
-  await expect(page.getByTestId("addons-install")).toBeVisible();
+  await expect(page.getByTestId("addons-new")).toBeVisible();
+}
+
+/** Blendet über „+ Neu“ das Formular „Addon installieren“ ein und lädt die ZIP hoch */
+export async function uploadZip(page: Page, file: string): Promise<void> {
+  await page.getByTestId("addons-new").click();
+  await page.getByTestId("addons-install-file").setInputFiles(file);
+  await page
+    .getByTestId("addons-install")
+    .getByRole("button", { name: "Installieren", exact: true })
+    .click();
 }

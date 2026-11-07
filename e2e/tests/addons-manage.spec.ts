@@ -1,16 +1,12 @@
 import { expect, test, type Page } from "@playwright/test";
 import { repoPath, resetAddons } from "../helpers/addons.js";
 import { openEvcc, openMoreMenu } from "../helpers/evcc.js";
-import { loginViaUi } from "../helpers/login.js";
+import { loginViaUi, uploadZip as uploadFile } from "../helpers/login.js";
 
 test.beforeEach(() => resetAddons());
 
-async function uploadZip(page: Page, relativePath: string): Promise<void> {
-  await page.getByTestId("addons-install-file").setInputFiles(repoPath(relativePath));
-  await page
-    .getByTestId("addons-install")
-    .getByRole("button", { name: "Installieren", exact: true })
-    .click();
+function uploadZip(page: Page, relativePath: string): Promise<void> {
+  return uploadFile(page, repoPath(relativePath));
 }
 
 test("ohne Login erscheint das Anmeldefeld, mit Passwort die Verwaltung", async ({ page }) => {
@@ -26,6 +22,41 @@ test("ohne Login erscheint das Anmeldefeld, mit Passwort die Verwaltung", async 
   await expect(page.getByTestId("addon-card-hello").getByTestId("addon-toggle")).toBeEnabled();
   await openMoreMenu(page);
   await expect(page.locator(".more-menu").getByText("Abmelden", { exact: true })).toBeVisible();
+});
+
+test("„+ Neu“ rechts neben dem Titel blendet das Installieren statt des Subtexts ein", async ({
+  page,
+}) => {
+  await loginViaUi(page);
+  const subtitle = page.getByTestId("addons-subtitle");
+  const install = page.getByTestId("addons-install");
+  const button = page.getByTestId("addons-new");
+  await expect(subtitle).toContainText("Addons erweitern evcc");
+  await expect(install).toHaveCount(0);
+  const title = await page.locator("#evcc-addons-page h1").boundingBox();
+  const box = await button.boundingBox();
+  expect(title && box && box.x > title.x + title.width - 1).toBe(true);
+  // Stil wie evcc NewDeviceButton (Konfiguration): Radius 1rem, Rahmen in --evcc-gray-50
+  await expect(button).toHaveCSS("border-top-left-radius", "16px");
+  const colors = await button.evaluate((el) => {
+    const probe = document.createElement("span");
+    probe.style.color = "var(--evcc-gray-50)";
+    document.body.append(probe);
+    const result = {
+      border: getComputedStyle(el).borderTopColor,
+      gray: getComputedStyle(probe).color,
+    };
+    probe.remove();
+    return result;
+  });
+  expect(colors.border).toBe(colors.gray);
+
+  await button.click();
+  await expect(install).toBeVisible();
+  await expect(subtitle).toHaveCount(0);
+  await button.click();
+  await expect(install).toHaveCount(0);
+  await expect(subtitle).toBeVisible();
 });
 
 test("Update und Neuinstallation melden die Versionen", async ({ page }) => {
@@ -52,7 +83,7 @@ test("Deaktivieren entfernt den Tab, Aktivieren bringt ihn zurück", async ({ pa
   let reloaded = page.waitForEvent("load");
   await toggle.click();
   await reloaded;
-  await expect(page.getByTestId("addons-install")).toBeVisible();
+  await expect(page.getByTestId("addons-new")).toBeVisible();
   await expect(toggle).not.toBeChecked();
   await expect(page.getByTestId("addon-tab-test-addon-0")).toHaveCount(0);
 
@@ -81,13 +112,57 @@ test("ein Zip-Slip-Paket wird mit Meldung abgelehnt", async ({ page }) => {
   );
 });
 
-test("nach dem Abmelden in evcc erscheint wieder das Anmeldefeld", async ({ page }) => {
-  await loginViaUi(page);
+async function logoutAndOpenAddons(page: Page): Promise<void> {
   await openMoreMenu(page);
   await page.locator(".more-menu").getByText("Abmelden", { exact: true }).click();
   await page.getByTestId("tab-laden").click();
   await openMoreMenu(page);
   await page.getByTestId("addons-more-item").click();
+}
+
+test("nach dem Abmelden in evcc erscheint wieder das Anmeldefeld", async ({ page }) => {
+  await loginViaUi(page);
+  await logoutAndOpenAddons(page);
   await expect(page.getByTestId("addons-login")).toBeVisible();
   await expect(page.getByTestId("addons-install")).toHaveCount(0);
+});
+
+test("Einstellungen speichern ohne Neuladen", async ({ page }) => {
+  await loginViaUi(page);
+  const card = page.getByTestId("addon-card-test-addon");
+  await expect(page.getByTestId("addon-card-hello").getByTestId("addon-settings")).toHaveCount(0);
+  await card.getByTestId("addon-settings").click();
+  const modal = page.getByTestId("addon-settings-modal");
+  await expect(modal).toContainText("Einstellungen Test-Addon");
+  const showPv = modal.getByTestId("addon-setting-showPv");
+  await expect(showPv).toBeChecked();
+  await showPv.uncheck();
+  await page.evaluate(() => ((window as { __noReload?: boolean }).__noReload = true));
+  await modal.getByTestId("addon-settings-save").click();
+  await expect(modal).toHaveCount(0);
+  expect(await page.evaluate(() => (window as { __noReload?: boolean }).__noReload)).toBe(true);
+
+  await page.getByTestId("addon-tab-test-addon-0").click();
+  await expect(page.getByTestId("test-addon-setting")).toHaveText("showPv: false");
+  await page.reload();
+  await expect(page.getByTestId("test-addon-setting")).toHaveText("showPv: false");
+
+  await logoutAndOpenAddons(page);
+  await card.getByTestId("addon-settings").click();
+  await expect(modal.getByTestId("addon-settings-readonly")).toHaveText(
+    "Zum Ändern in evcc anmelden.",
+  );
+  await expect(modal.getByTestId("addon-setting-showPv")).toBeDisabled();
+  await expect(modal.getByTestId("addon-setting-showPv")).not.toBeChecked();
+  await expect(modal.getByTestId("addon-settings-save")).toHaveCount(0);
+});
+
+test("neben dem Titel steht die Version", async ({ page, request }) => {
+  const health = (await (await request.get("/addons-api/health")).json()) as { version: string };
+  await openEvcc(page, "#/addons");
+  const version = page.getByTestId("addons-version");
+  await expect(version).toHaveText(`v${health.version}`);
+  // klein und mit kleinem „v“ wie die Version auf den Addon-Karten, nicht in Großbuchstaben des h1
+  await expect(version).toHaveCSS("text-transform", "none");
+  await expect(version).toHaveCSS("font-size", "14px");
 });
