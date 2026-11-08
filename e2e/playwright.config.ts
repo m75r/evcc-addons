@@ -28,6 +28,15 @@ export default defineConfig({
       stderr: "pipe",
     },
     {
+      command: "node e2e/start-fake-tapo.mjs",
+      cwd: root,
+      url: "http://127.0.0.1:17090/_test/state",
+      timeout: 30_000,
+      reuseExistingServer: false,
+      stdout: "ignore",
+      stderr: "pipe",
+    },
+    {
       command: "node e2e/start-proxy.mjs",
       cwd: root,
       url: "http://127.0.0.1:17080/addons-api/health",

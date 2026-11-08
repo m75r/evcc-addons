@@ -2,6 +2,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { AddonError } from "../addons/errors.js";
 import { sendError } from "../http/json.js";
+import { redactPath } from "../switches/redact.js";
 import { errorMessage } from "../util.js";
 import type { ApiContext, Route } from "./context.js";
 
@@ -68,12 +69,15 @@ export function handleApiError(
   ctx: ApiContext,
 ): void {
   if (res.headersSent) {
-    ctx.logger.error("api response failed", { path: req.url, error: errorMessage(err) });
+    ctx.logger.error("api response failed", {
+      path: redactPath(req.url),
+      error: errorMessage(err),
+    });
     res.destroy();
     return;
   }
   if (!(err instanceof AddonError)) {
-    ctx.logger.error("api request failed", { path: req.url, error: errorMessage(err) });
+    ctx.logger.error("api request failed", { path: redactPath(req.url), error: errorMessage(err) });
     return sendError(res, 500, "internal", `Interner Fehler: ${errorMessage(err)}`);
   }
   if (!req.complete) lingerAfterResponse(req, res);

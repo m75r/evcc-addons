@@ -2,7 +2,7 @@
 import { spawn } from "node:child_process";
 import { mkdir, rm } from "node:fs/promises";
 import { resolve } from "node:path";
-import { buildFixtures, configPath, resetAddons, root } from "./seed.mjs";
+import { buildFixtures, configPath, resetAddons, root, seedSwitches } from "./seed.mjs";
 
 const dataDir = resolve(root, "e2e/.data");
 
@@ -11,6 +11,7 @@ try {
   await mkdir(dataDir, { recursive: true });
   buildFixtures();
   resetAddons();
+  seedSwitches(dataDir);
 } catch (err) {
   process.stderr.write(
     `E2E-Vorbereitung fehlgeschlagen: ${err instanceof Error ? err.message : err}\n`,

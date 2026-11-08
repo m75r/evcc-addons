@@ -1,11 +1,12 @@
-// Seite „Addons“ (#/addons): Sitzung, Installation und Liste der Addons
+// Seite „Addons“ (#/addons): Sitzung, Installation, Liste der Addons und Steckdosen
 import { useCallback, useEffect, useState } from "preact/hooks";
 import type { AddonInfo, ManagerClient, Session, SessionReason } from "../addons-client.js";
 import { t, type MessageKey } from "../i18n.js";
-import { PLUS_ICON } from "../icons.js";
 import { AddonCard, type AddonActions } from "./AddonCard.js";
 import { InstallForm } from "./InstallForm.js";
 import { LoginForm } from "./LoginForm.js";
+import { NewButton } from "./NewButton.js";
+import { SwitchSection } from "./SwitchSection.js";
 
 export interface ManagerPageProps {
   locale: string;
@@ -117,6 +118,13 @@ export function ManagerPage(props: ManagerPageProps) {
         reason={reason}
         actions={actions}
       />
+      <SwitchSection
+        locale={locale}
+        client={client}
+        canManage={canManage}
+        confirm={actions.confirm}
+        onUnauthorized={actions.onUnauthorized}
+      />
     </div>
   );
 }
@@ -143,35 +151,15 @@ function PageHeader({ locale, version, showNew, newOpen, onNew }: PageHeaderProp
           )}
         </h1>
       </div>
-      {showNew && <NewButton locale={locale} open={newOpen} onClick={onNew} />}
+      {showNew && (
+        <NewButton
+          label={t("manager.new", locale)}
+          testId="addons-new"
+          open={newOpen}
+          onClick={onNew}
+        />
+      )}
     </header>
-  );
-}
-
-/** Wie evcc Config/NewDeviceButton (Plus + Text, grauer Rahmen); blendet „Addon installieren“ ein/aus */
-function NewButton({
-  locale,
-  open,
-  onClick,
-}: {
-  locale: string;
-  open: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      class={`evcc-addons-new-btn d-flex align-items-center text-nowrap${open ? " active" : ""}`}
-      data-testid="addons-new"
-      aria-expanded={open}
-      onClick={onClick}
-    >
-      <span
-        class="evcc-addons-new-icon me-1 flex-shrink-0"
-        dangerouslySetInnerHTML={{ __html: PLUS_ICON }}
-      />
-      <span>{t("manager.new", locale)}</span>
-    </button>
   );
 }
 

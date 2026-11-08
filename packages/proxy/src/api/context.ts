@@ -4,12 +4,14 @@ import type { AddonStore } from "../addons/store.js";
 import type { StatusRegistry } from "../addons/status.js";
 import type { ProxyConfig } from "../config.js";
 import type { Logger } from "../logger.js";
+import type { SwitchManager } from "../switches/manager.js";
 
 export interface ApiContext {
   config: ProxyConfig;
   store: AddonStore;
   status: StatusRegistry;
   logger: Logger;
+  switches: SwitchManager;
 }
 
 export type Handler = (

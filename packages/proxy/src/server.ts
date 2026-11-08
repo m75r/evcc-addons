@@ -15,6 +15,9 @@ import { forwardRequest } from "./proxy/forward.js";
 import { injectLoader, isIndexRequest, loaderTag } from "./proxy/inject.js";
 import { UpgradeTracker, forwardUpgrade } from "./proxy/websocket.js";
 import { serveFile } from "./static/files.js";
+import { switchRoutes } from "./switches/api.js";
+import { SwitchManager } from "./switches/manager.js";
+import { redactPath } from "./switches/redact.js";
 import { errorMessage } from "./util.js";
 import { VERSION } from "./version.js";
 
@@ -22,12 +25,14 @@ export interface ProxyDeps {
   logger: Logger;
   status?: StatusRegistry;
   store?: AddonStore;
+  switches?: SwitchManager;
 }
 
 export interface ProxyServer {
   server: http.Server;
   store: AddonStore;
   status: StatusRegistry;
+  switches: SwitchManager;
   listen(): Promise<AddressInfo>;
   stop(): Promise<void>;
 }
@@ -45,7 +50,7 @@ export function createProxyServer(config: ProxyConfig, deps: ProxyDeps): ProxySe
     logger: deps.logger,
     target,
     api,
-    router: createApiRouter([...readRoutes, ...writeRoutes], api),
+    router: createApiRouter([...readRoutes, ...writeRoutes, ...switchRoutes], api),
   };
   const server = http.createServer((req, res) => {
     logRequest(req, res, deps.logger);
@@ -60,8 +65,9 @@ export function createProxyServer(config: ProxyConfig, deps: ProxyDeps): ProxySe
     server,
     store: api.store,
     status: api.status,
-    listen: () => listen(server, config),
-    stop: () => stop(server, tracker),
+    switches: api.switches,
+    listen: () => listen(server, config, api.switches),
+    stop: () => stop(server, tracker, api.switches),
   };
 }
 
@@ -78,7 +84,10 @@ function createApiContext(config: ProxyConfig, deps: ProxyDeps): ApiContext {
   const limits = { maxBytes: config.maxUploadBytes };
   const store =
     deps.store ?? new AddonStore({ dataDir: config.dataDir, logger: deps.logger, status, limits });
-  return { config, store, status, logger: deps.logger };
+  const switches =
+    deps.switches ??
+    new SwitchManager({ dataDir: config.dataDir, evccUrl: config.evccUrl, logger: deps.logger });
+  return { config, store, status, logger: deps.logger, switches };
 }
 
 async function handleRequest(req: IncomingMessage, res: ServerResponse, ctx: RequestContext) {
@@ -123,7 +132,7 @@ function indexTransformer(logger: Logger, path: string): (html: string) => strin
 }
 
 function handleFailure(res: ServerResponse, err: unknown, logger: Logger, path?: string): void {
-  logger.error("request failed", { path, error: errorMessage(err) });
+  logger.error("request failed", { path: redactPath(path), error: errorMessage(err) });
   if (res.headersSent) {
     res.destroy();
     return;
@@ -137,14 +146,24 @@ function logRequest(req: IncomingMessage, res: ServerResponse, logger: Logger): 
   res.on("finish", () =>
     logger.debug("request", {
       method: req.method,
-      path: req.url,
+      path: redactPath(req.url),
       status: res.statusCode,
       ms: Date.now() - start,
     }),
   );
 }
 
-function listen(server: http.Server, config: ProxyConfig): Promise<AddressInfo> {
+/** Lädt zuerst die Steckdosen; ein ungültiges switches.json verhindert den Start */
+async function listen(
+  server: http.Server,
+  config: ProxyConfig,
+  switches: SwitchManager,
+): Promise<AddressInfo> {
+  try {
+    await switches.start();
+  } catch (err) {
+    throw new Error(`Steckdosen nicht geladen: ${errorMessage(err)}`, { cause: err });
+  }
   return new Promise((resolvePromise, reject) => {
     server.once("error", reject);
     server.listen(config.listen.port, config.listen.host, () => {
@@ -154,7 +173,12 @@ function listen(server: http.Server, config: ProxyConfig): Promise<AddressInfo> 
   });
 }
 
-function stop(server: http.Server, tracker: UpgradeTracker): Promise<void> {
+function stop(
+  server: http.Server,
+  tracker: UpgradeTracker,
+  switches: SwitchManager,
+): Promise<void> {
+  switches.stop();
   tracker.destroyAll();
   if (!server.listening) return Promise.resolve();
   return new Promise((resolvePromise, reject) => {

@@ -131,6 +131,73 @@ export const MESSAGES = {
     de: "Die Datei ist keine gültige ZIP-Datei.",
     en: "The file is not a valid ZIP file.",
   },
+  "error.switch-invalid": { de: "{message}", en: "{message}" },
+  "switches.title": { de: "Steckdosen", en: "Smart plugs" },
+  "switches.new": { de: "Steckdose", en: "Smart plug" },
+  "switches.empty": {
+    de: "Noch keine Steckdosen. Mit „+ Steckdose“ eine Tapo-Steckdose anlegen.",
+    en: "No smart plugs yet. Use “+ Smart plug” to add a Tapo plug.",
+  },
+  "switches.loading": { de: "Steckdosen werden geladen …", en: "Loading smart plugs …" },
+  "switches.loadError": {
+    de: "Steckdosen konnten nicht geladen werden: {message}",
+    en: "Could not load smart plugs: {message}",
+  },
+  "switches.reading": { de: "Status wird gelesen …", en: "Reading status …" },
+  "switches.on": { de: "an", en: "on" },
+  "switches.off": { de: "aus", en: "off" },
+  "switches.unreachable": { de: "nicht erreichbar: {message}", en: "unreachable: {message}" },
+  "switches.loadpoint": { de: "Ladepunkt „{title}“", en: "Loadpoint “{title}”" },
+  "switches.loadpointMissing": {
+    de: "Ladepunkt nicht gefunden",
+    en: "Loadpoint not found",
+  },
+  "switches.modeError": {
+    de: "Modus konnte nicht gesetzt werden: {message}",
+    en: "Could not set the mode: {message}",
+  },
+  "switches.edit": { de: "Bearbeiten", en: "Edit" },
+  "switches.delete": { de: "Löschen", en: "Delete" },
+  "switches.delete.confirm": {
+    de: "{name} wirklich löschen? evcc kann die Steckdose danach nicht mehr schalten.",
+    en: "Really delete {name}? evcc will no longer be able to switch the plug.",
+  },
+  "switches.yaml": { de: "evcc-Konfiguration", en: "evcc configuration" },
+  "switches.copy": { de: "Kopieren", en: "Copy" },
+  "switches.copied": { de: "Kopiert", en: "Copied" },
+  "switches.copyError": {
+    de: "Kopieren nicht möglich: {message}",
+    en: "Could not copy: {message}",
+  },
+  "switches.renew": { de: "Token erneuern", en: "Renew token" },
+  "switches.renew.confirm": {
+    de: "Token erneuern? evcc kann die Steckdose erst wieder schalten, wenn die neue YAML in evcc eingetragen ist.",
+    en: "Renew the token? evcc can only switch the plug again once the new YAML has been entered in evcc.",
+  },
+  "switches.yamlHint": {
+    de: "In evcc den Charger des Ladepunkts auf „Benutzerdefinierte schaltbare Steckdose“ umstellen und diese YAML einfügen. Die Adresse stammt aus der Browserzeile; läuft evcc auf demselben Rechner, geht auch {local}.",
+    en: "In evcc, change the loadpoint's charger to “custom switchable socket” and paste this YAML. The address is taken from the browser; if evcc runs on the same machine, {local} works too.",
+  },
+  "switches.modal.create": { de: "Steckdose hinzufügen", en: "Add smart plug" },
+  "switches.modal.edit": { de: "Steckdose bearbeiten", en: "Edit smart plug" },
+  "switches.field.name": { de: "Name", en: "Name" },
+  "switches.field.type": { de: "Typ", en: "Type" },
+  "switches.field.host": { de: "Adresse", en: "Address" },
+  "switches.field.user": { de: "Tapo-E-Mail", en: "Tapo email" },
+  "switches.field.password": { de: "Tapo-Passwort", en: "Tapo password" },
+  "switches.field.loadpoint": { de: "evcc-Ladepunkt", en: "evcc loadpoint" },
+  "switches.type.tapo": { de: "TP-Link Tapo (KLAP)", en: "TP-Link Tapo (KLAP)" },
+  "switches.password.keep": { de: "leer = unverändert", en: "empty = unchanged" },
+  "switches.loadpoint.notFound": { de: "{title} (nicht gefunden)", en: "{title} (not found)" },
+  "switches.loadpoint.loading": { de: "Ladepunkte werden geladen …", en: "Loading loadpoints …" },
+  "switches.loadpoint.unavailable": {
+    de: "Ladepunkte konnten nicht geladen werden ({message}). Titel bitte von Hand eintragen.",
+    en: "Could not load loadpoints ({message}). Please enter the title manually.",
+  },
+  "switches.saved.unreachable": {
+    de: "Gespeichert, aber die Verbindung schlug fehl: {message}",
+    en: "Saved, but the connection failed: {message}",
+  },
 } satisfies Record<string, Record<"de" | "en", string>>;
 
 export type MessageKey = keyof typeof MESSAGES;

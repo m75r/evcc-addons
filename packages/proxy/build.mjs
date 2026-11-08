@@ -17,7 +17,12 @@ try {
     bundle: true,
     sourcemap: false,
     legalComments: "eof",
-    banner: { js: legalBanner("evcc-addons server", ["fflate (MIT)"]) },
+    banner: {
+      js: legalBanner("evcc-addons server", [
+        "fflate (MIT)",
+        "a port of insomniacslk/tapo KLAP (MIT)",
+      ]),
+    },
     define: { __VERSION__: JSON.stringify(pkg.version) },
     logLevel: "warning",
   });

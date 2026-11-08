@@ -60,6 +60,12 @@ function fakeClient(session: Session, overrides: Partial<ManagerClient> = {}): M
     ),
     uninstallAddon: vi.fn(() => Promise.resolve()),
     login: vi.fn(() => Promise.resolve()),
+    listSwitches: vi.fn(() => Promise.resolve([])),
+    createSwitch: vi.fn(() => Promise.reject(new Error("nicht erwartet"))),
+    updateSwitch: vi.fn(() => Promise.reject(new Error("nicht erwartet"))),
+    deleteSwitch: vi.fn(() => Promise.resolve()),
+    renewSwitchToken: vi.fn(() => Promise.resolve("t")),
+    listLoadpointTitles: vi.fn(() => Promise.resolve([])),
     ...overrides,
   };
 }

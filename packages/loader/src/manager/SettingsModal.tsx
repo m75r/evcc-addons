@@ -1,10 +1,10 @@
-// Modal „Einstellungen <Name>“ im Markup von evcc GenericModal (ohne Bootstrap-JS)
+// Modal „Einstellungen <Name>“ eines Addons
 import type { SettingValue, SettingValues } from "@evcc-addons/sdk";
-import type { RefObject } from "preact";
-import { useEffect, useRef, useState } from "preact/hooks";
+import { useState } from "preact/hooks";
 import { ApiError, type AddonInfo, type SessionReason } from "../addons-client.js";
 import { localize, t, type MessageKey } from "../i18n.js";
 import { errorText, isUnauthorized } from "./errors.js";
+import { Modal } from "./Modal.js";
 import { SettingField } from "./SettingField.js";
 
 export interface SettingsModalProps {
@@ -45,70 +45,34 @@ function saveErrorText(err: unknown, locale: string): string {
   return t("manager.settings.error", locale, { message: errorText(err, locale) });
 }
 
-/** `body.modal-open` wie Bootstrap, Fokus auf den Dialog */
-function useModalEffects(dialog: RefObject<HTMLDivElement | null>): void {
-  useEffect(() => {
-    document.body.classList.add("modal-open");
-    dialog.current?.focus();
-    return () => document.body.classList.remove("modal-open");
-  }, []);
-}
-
 export function SettingsModal(props: SettingsModalProps) {
   const { addon, locale } = props;
-  const dialog = useRef<HTMLDivElement>(null);
   const [draft, setDraft] = useState<SettingValues>(() => ({ ...props.values }));
   const { busy, error, submit } = useSaveSettings(props);
-  useModalEffects(dialog);
   const close = () => !busy && props.onClose();
-  const titleId = `addon-settings-title-${addon.id}`;
   return (
-    <>
-      <div
-        ref={dialog}
-        class="modal fade show d-block"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        tabIndex={-1}
-        data-testid="addon-settings-modal"
-        onKeyDown={(e) => e.key === "Escape" && close()}
-        onClick={(e) => e.target === e.currentTarget && close()}
-      >
-        <div class="modal-dialog modal-dialog-centered" role="document">
-          <div class="modal-content">
-            <div class="modal-header">
-              <h5 class="modal-title" id={titleId}>
-                {t("manager.settings.title", locale, { name: localize(addon.name, locale) })}
-              </h5>
-              <button
-                type="button"
-                class="btn-close"
-                data-testid="addon-settings-close"
-                aria-label={t("manager.settings.close", locale)}
-                onClick={close}
-              />
-            </div>
-            <div class="modal-body">
-              <SettingsFields
-                {...props}
-                draft={draft}
-                disabled={!props.canManage || busy}
-                onChange={(key, value) => setDraft((prev) => ({ ...prev, [key]: value }))}
-              />
-              <SettingsFooter
-                {...props}
-                busy={busy}
-                error={error}
-                onSave={() => void submit(draft)}
-                onCancel={close}
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="modal-backdrop fade show" />
-    </>
+    <Modal
+      title={t("manager.settings.title", locale, { name: localize(addon.name, locale) })}
+      titleId={`addon-settings-title-${addon.id}`}
+      testId="addon-settings-modal"
+      closeTestId="addon-settings-close"
+      closeLabel={t("manager.settings.close", locale)}
+      onClose={close}
+    >
+      <SettingsFields
+        {...props}
+        draft={draft}
+        disabled={!props.canManage || busy}
+        onChange={(key, value) => setDraft((prev) => ({ ...prev, [key]: value }))}
+      />
+      <SettingsFooter
+        {...props}
+        busy={busy}
+        error={error}
+        onSave={() => void submit(draft)}
+        onCancel={close}
+      />
+    </Modal>
   );
 }
 

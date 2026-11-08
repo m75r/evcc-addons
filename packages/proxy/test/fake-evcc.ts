@@ -31,13 +31,30 @@ export interface FakeEvcc {
   sockets: Set<Duplex>;
   /** Pro Test änderbar */
   auth: { mode: AuthMode; lastHeaders?: http.IncomingHttpHeaders };
+  /** Antwort auf `/api/state?jq=[.loadpoints[].title]` und POST …/mode/<m> */
+  loadpoints: FakeLoadpoints;
   stop(): Promise<void>;
+}
+
+export interface FakeLoadpoints {
+  titles: string[];
+  /** Aufgezeichnete Moduswechsel (Position 1-basiert) */
+  modes: { position: number; mode: string; at: number }[];
+  /** Statuscode statt 200 für Moduswechsel */
+  modeStatus: number;
+  modeDelayMs: number;
 }
 
 export async function startFakeEvcc(opts: FakeEvccOptions = {}, port = 0): Promise<FakeEvcc> {
   const sockets = new Set<Duplex>();
   const auth: FakeEvcc["auth"] = { mode: "cookie" };
-  const server = http.createServer((req, res) => void handle(req, res, opts, auth));
+  const loadpoints: FakeLoadpoints = {
+    titles: STATE.loadpoints.map((lp) => lp.title),
+    modes: [],
+    modeStatus: 200,
+    modeDelayMs: 0,
+  };
+  const server = http.createServer((req, res) => void handle(req, res, opts, auth, loadpoints));
   server.on("upgrade", (req: IncomingMessage, socket: Duplex) =>
     upgrade(req, socket, opts, sockets),
   );
@@ -48,6 +65,7 @@ export async function startFakeEvcc(opts: FakeEvccOptions = {}, port = 0): Promi
     port: address.port,
     sockets,
     auth,
+    loadpoints,
     stop: () => stopServer(server, sockets),
   };
 }
@@ -65,8 +83,9 @@ async function handle(
   res: ServerResponse,
   opts: FakeEvccOptions,
   auth: FakeEvcc["auth"],
+  loadpoints: FakeLoadpoints,
 ) {
-  const path = (req.url ?? "/").split("?")[0];
+  const [path, query = ""] = (req.url ?? "/").split("?");
   if (req.method === "POST" && path === "/echo") return echo(req, res);
   if (path === "/api/auth/status") return authStatus(req, res, auth);
   if (req.method === "POST" && path === "/api/auth/login") return login(req, res);
@@ -82,10 +101,27 @@ async function handle(
     await new Promise((resolve) => setTimeout(resolve, 100));
     return void res.writeHead(200, { "content-type": "text/plain" }).end("slow");
   }
+  const mode = /^\/api\/loadpoints\/(\d+)\/mode\/([a-z]+)$/.exec(path);
+  if (req.method === "POST" && mode) return setMode(res, loadpoints, Number(mode[1]), mode[2]);
+  if (path === "/api/state" && new URLSearchParams(query).get("jq") === TITLES_JQ) {
+    return send(req, res, JSON.stringify(loadpoints.titles), {
+      "content-type": "application/json",
+    });
+  }
   if (path === "/api/state") {
     return send(req, res, JSON.stringify(STATE), { "content-type": "application/json" });
   }
   res.writeHead(404).end("not found");
+}
+
+const TITLES_JQ = "[.loadpoints[].title]";
+
+async function setMode(res: ServerResponse, lps: FakeLoadpoints, position: number, mode: string) {
+  if (lps.modeDelayMs > 0) await new Promise((resolve) => setTimeout(resolve, lps.modeDelayMs));
+  if (lps.modeStatus !== 200) return void res.writeHead(lps.modeStatus).end("mode failed");
+  if (position < 1 || position > lps.titles.length) return void res.writeHead(400).end("bad lp");
+  lps.modes.push({ position, mode, at: Date.now() });
+  res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify(mode));
 }
 
 function send(

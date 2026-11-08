@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "switches": [
+    {
+      "id": "lampe",
+      "name": "Lampe",
+      "type": "tapo",
+      "host": "127.0.0.1:17090",
+      "user": "ich@example.com",
+      "password": "tapo-secret",
+      "loadpoint": "Lampe",
+      "token": "e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0"
+    }
+  ]
+}

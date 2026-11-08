@@ -4,8 +4,8 @@ import { useState } from "preact/hooks";
 import type { AddonInfo, SessionReason } from "../addons-client.js";
 import { localize, t } from "../i18n.js";
 import { ADJUST_ICON } from "../icons.js";
-import { errorText, isUnauthorized } from "./errors.js";
 import { SettingsModal } from "./SettingsModal.js";
+import { useAction } from "./useAction.js";
 
 export interface AddonActions {
   setEnabled: (id: string, enabled: boolean) => Promise<unknown>;
@@ -24,25 +24,6 @@ export interface AddonCardProps {
   canManage: boolean;
   reason: SessionReason | null;
   actions: AddonActions;
-}
-
-/** Führt eine Aktion aus; Erfolg lädt neu, Fehler erscheinen auf der Karte */
-function useAction(actions: AddonActions, locale: string) {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const run = async (action: () => Promise<unknown>) => {
-    setBusy(true);
-    setError(null);
-    try {
-      await action();
-      actions.reload();
-    } catch (err) {
-      setBusy(false);
-      if (isUnauthorized(err)) return actions.onUnauthorized();
-      setError(t("manager.actionError", locale, { message: errorText(err, locale) }));
-    }
-  };
-  return { busy, error, run };
 }
 
 /** Aktuelle Werte und Modal; Speichern ohne Neuladen, Fehler behandelt das Modal */

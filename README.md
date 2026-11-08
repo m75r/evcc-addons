@@ -16,9 +16,12 @@ Browser ──HTTP :80──► evcc-addons (Node ≥ 22)
                        ├─ /ws (Upgrade)             → evcc (Socket-Piping)
                        ├─ /addons-static/_core/*    Loader-Bundle
                        ├─ /addons-static/<id>/*     Dateien installierter Addons
+                       ├─ /addons-api/switches/*    Steckdosen (Verwaltung und Gateway für evcc)
                        ├─ /addons-api/*             Verwaltung
                        └─ alles andere              → evcc :7070 (unverändert)
 Browser ──HTTP :7070─► evcc direkt (ohne Addons)
+
+evcc ──HTTP──► /addons-api/switches/<id>/<token>/… ──► evcc-addons ──KLAP──► Tapo-Steckdose
 ```
 
 ## Installation auf dem Raspberry Pi
@@ -45,7 +48,7 @@ Danach läuft der Dienst `evcc-addons` und evcc ist mit Addons unter `http://<pi
 
 - Programm: `/opt/evcc-addons/` (Server, Loader, mitgelieferte Addon-ZIPs unter `addons/`)
 - Konfiguration: `/etc/evcc-addons/config.json`
-- Daten (installierte Addons, Zustand): `/var/lib/evcc-addons/`
+- Daten (installierte Addons, Zustand, Steckdosen in `switches.json`): `/var/lib/evcc-addons/`
 - Dienst: `evcc-addons.service`, User `evcc-addons`
 
 ### Konfiguration
@@ -110,12 +113,15 @@ Addons erscheinen nur, wenn evcc über den Proxy aufgerufen wird:
 - **evcc-Cloud-Fernzugriff:** Der Tunnel erreicht den internen evcc-Router direkt, am Proxy vorbei. Dort gibt es keine Addons.
 - **evcc-App:** Die App findet evcc per mDNS unter `:7070`. In der App lässt sich die Adresse gegebenenfalls manuell auf `http://<pi>/` setzen.
 - **Direktaufruf `http://<pi>:7070/`:** zeigt evcc ohne Addons. Das ist gewollt, denn so bleibt evcc auch ohne Proxy nutzbar.
+- **Steckdosen über das Schalt-Gateway:** Läuft evcc-addons nicht, kann evcc diese Steckdosen weder lesen noch schalten. Wird währenddessen am Gerät geschaltet, gilt nach dem Neustart der erste gelesene Zustand als bekannt; das wird nicht als Tastendruck erkannt, evcc kann dann einmal zurückschalten.
 
 ## Sicherheit
 
 - Addons laufen mit vollen Rechten im evcc-Fenster und können alles, was die evcc-Oberfläche kann. Nur vertrauenswürdige Addons installieren.
 - Installieren, Umschalten, Einstellungen ändern und Deinstallieren erfordern den evcc-Admin-Login. Geprüft wird serverseitig über `api/auth/status` von evcc.
 - Ist die Authentifizierung in evcc deaktiviert, ist auch die Addon-Verwaltung offen.
+- Tapo-Passwörter liegen im Klartext in `/var/lib/evcc-addons/switches.json` (Dateirechte `0600`, User `evcc-addons`). Verschlüsseln brächte nichts, weil der Schlüssel auf demselben Rechner läge. Die API und das Log geben das Passwort nie aus.
+- Die Gateway-URLs für evcc enthalten pro Steckdose einen zufälligen Token (256 Bit). Wer die URL kennt, kann die Steckdose schalten. Ein falscher Token ergibt 404, im Log steht statt des Tokens `***`. Über „Token erneuern“ wird er ausgetauscht.
 
 ## Addons verwalten
 
@@ -159,6 +165,37 @@ Warum nur Ladepunkte schaltbar sind: evcc schaltet `consumer`-Meter nie und biet
 
 Die Buttons setzen die Modi von evcc: ⏻ aktiv = `now` (Schnell), ☀ aktiv = `smart` (PV-Überschuss bzw. Tarif), keiner aktiv = `off`. Ein Klick auf den aktiven Button schaltet aus. Die veralteten Modi `pv` und `minpv` gelten als Smart.
 
+## Steckdosen (Schalt-Gateway)
+
+Wozu: Eine Tapo-Steckdose, die evcc direkt als Ladepunkt anspricht, lässt sich nicht sinnvoll am Gerät schalten. evcc liest in jedem Zyklus den Zustand und schaltet sofort zurück, solange der Modus etwas anderes verlangt. Über das Gateway spricht evcc die Steckdose stattdessen über evcc-addons an. evcc-addons erkennt Schaltungen am Gerät, führt den Rückschaltbefehl von evcc nicht aus und stellt den Modus des Ladepunkts passend um.
+
+Unterstützt werden TP-Link-Tapo-Steckdosen mit aktueller Firmware (KLAP-Protokoll, z. B. P110, P115, P100). Ältere Firmware mit dem passthrough-Protokoll wird nicht unterstützt; die Karte zeigt dann „Verbindung fehlgeschlagen (nur Tapo-Firmware mit KLAP-Protokoll wird unterstützt)“ mit der Ursache.
+
+### Einrichten
+
+1. **Steckdose anlegen:** Seite „Addons“ → Abschnitt „Steckdosen“ → „+ Steckdose“ (nur mit Admin-Login). Name, Adresse (IP oder Hostname, optional mit `:port`), Tapo-E-Mail und Tapo-Passwort (die Zugangsdaten der Tapo-App) sowie den evcc-Ladepunkt wählen. „Speichern“ prüft sofort die Verbindung; schlägt sie fehl, wird trotzdem gespeichert und die Karte zeigt den Fehler. Beim Bearbeiten bleibt ein leeres Passwortfeld unverändert.
+2. **YAML kopieren:** Auf der Karte „evcc-Konfiguration“ aufklappen und „Kopieren“ drücken. Die Adresse in der YAML stammt aus der Browserzeile. Läuft evcc auf demselben Rechner wie evcc-addons, geht auch `http://127.0.0.1:<Port>`.
+3. **evcc umstellen:** In der evcc-Konfiguration den Charger des Ladepunkts auf „Benutzerdefinierte schaltbare Steckdose“ umstellen und die YAML einfügen. `standbypower`, `features` und `icon` vom bisherigen Tapo-Charger übernehmen. Steckdosen ohne Messung (P100) bekommen statt `power` eine feste Leistung (`standbypower: -100`, Wert anpassen). evcc neu starten, wenn evcc darum bittet.
+4. Optional: Den Ladepunkt auf der Startseite über evcc „Benutzeroberfläche → Ladepunkte“ ausblenden (gilt pro Browser). Schalten lässt er sich weiter über das Verbraucher-Addon.
+
+Danach spricht nur noch evcc-addons mit der Steckdose. Ein und Aus aus der App, Smart/PV und Pläne laufen wie bisher, evcc-addons führt sie aus.
+
+### Schaltungen am Gerät
+
+evcc-addons liest jede Steckdose alle 5 s. Weicht der Zustand vom zuletzt bestätigten ab, ohne dass gerade ein Befehl läuft, wurde am Gerät geschaltet:
+
+- **Am Gerät aus** → Modus des Ladepunkts „Aus“ (`off`).
+- **Am Gerät ein** → Modus „Schnell“ (`now`).
+
+Das gilt unabhängig vom bisherigen Modus, ein eingestelltes „Smart“ geht durch einen Tastendruck verloren. Die Steckdose schaltet dabei nie zurück, auch nicht kurz: Gegenläufige Befehle von evcc werden unterdrückt, bis evcc den passenden Befehl schickt oder 2 s nach dem gesetzten Modus vergangen sind. Die App zeigt die Änderung nach höchstens etwa 5 s.
+
+Die Karte zeigt Zustand und Leistung („● an · 35 W“, „○ aus“, „nicht erreichbar: …“) und warnt bei Problemen:
+
+- **Ladepunkt nicht gefunden:** Der gespeicherte Titel existiert in evcc nicht (mehr), z. B. nach einer Umbenennung. Über „Bearbeiten“ den Ladepunkt neu wählen.
+- **Modus konnte nicht gesetzt werden:** evcc war nicht erreichbar, der Titel ist nicht eindeutig oder evcc hat abgelehnt. Das Zurückschalten bleibt unterdrückt, evcc-addons versucht es bei jeder Abfrage erneut.
+
+Zuordnung: Gespeichert wird der Titel des Ladepunkts, nicht seine Position, damit Löschen oder Umsortieren in evcc nichts verschiebt. Die Modus-Endpunkte von evcc brauchen keine Anmeldung.
+
 ## Entwicklung
 
 Voraussetzungen: Node.js ≥ 22, für E2E-Tests Docker.
@@ -201,4 +238,4 @@ npm run build && node packages/proxy/dist/server.mjs --config .dev/pi.json
 
 evcc-addons steht unter der [MIT-Lizenz](LICENSE), Copyright (c) 2026 Matthias Gasser.
 
-Die ausgelieferten Dateien enthalten Fremdkomponenten unter eigenen Lizenzen: [Preact](https://github.com/preactjs/preact) und [fflate](https://github.com/101arrowz/fflate) (MIT), Geräte-Icons aus [evcc](https://github.com/evcc-io/evcc) (MIT) und Icons aus [@h2d2/shopicons](https://github.com/H2D2-Design/h2d2-shopicons) (Apache-2.0). Die Lizenztexte stehen in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Beide Dateien liegen jeder Addon-ZIP bei, das Debian-Paket installiert sie nach `/usr/share/doc/evcc-addons/`.
+Die ausgelieferten Dateien enthalten Fremdkomponenten unter eigenen Lizenzen: [Preact](https://github.com/preactjs/preact) und [fflate](https://github.com/101arrowz/fflate) (MIT), eine Portierung des KLAP-Protokolls aus [insomniacslk/tapo](https://github.com/insomniacslk/tapo) (MIT), Geräte-Icons aus [evcc](https://github.com/evcc-io/evcc) (MIT) und Icons aus [@h2d2/shopicons](https://github.com/H2D2-Design/h2d2-shopicons) (Apache-2.0). Die Lizenztexte stehen in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Beide Dateien liegen jeder Addon-ZIP bei, das Debian-Paket installiert sie nach `/usr/share/doc/evcc-addons/`.

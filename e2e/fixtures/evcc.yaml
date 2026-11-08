@@ -57,8 +57,30 @@ loadpoints:
   - title: Waschmaschine
     charger: socket
     mode: off
+  # Tapo-Steckdose über das Schalt-Gateway des Proxys (Fake-Tapo, Steckdose „lampe“ aus switches.json)
+  - title: Lampe
+    charger: lampe
+    mode: off
 
 chargers:
+  - name: lampe
+    type: switchsocket
+    enabled:
+      source: http
+      uri: http://host.docker.internal:17080/addons-api/switches/lampe/e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0/state
+      jq: .on
+    enable:
+      source: http
+      uri: http://host.docker.internal:17080/addons-api/switches/lampe/e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0/set?on={{.enable}}
+      method: POST
+    power:
+      source: http
+      uri: http://host.docker.internal:17080/addons-api/switches/lampe/e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0/state
+      jq: .power
+    standbypower: 0
+    features:
+      - switchdevice
+      - integrateddevice
   # entspricht dem evcc-Template demo-switch (enabled: true, power: 150), das evcc/evcc:latest
   # (0.318) noch nicht enthält
   - name: socket

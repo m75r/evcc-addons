@@ -1,7 +1,7 @@
 // Baut die E2E-Fixture-Addons und installiert den Seed-Zustand per CLI
 import { strToU8, zipSync } from "fflate";
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { chmodSync, copyFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 export const root = resolve(import.meta.dirname, "..");
@@ -42,4 +42,11 @@ export function seedZips() {
 /** Setzt e2e/.data auf den Seed-Zustand zurück */
 export function resetAddons() {
   run([serverPath, "install", "--config", configPath, "--reset", ...seedZips()]);
+}
+
+/** Steckdose „Lampe“ (Fake-Tapo auf 127.0.0.1:17090) nach e2e/.data/switches.json */
+export function seedSwitches(dataDir) {
+  const target = resolve(dataDir, "switches.json");
+  copyFileSync(resolve(root, "e2e/fixtures/switches.json"), target);
+  chmodSync(target, 0o600);
 }
