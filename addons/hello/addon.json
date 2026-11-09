@@ -1,8 +1,0 @@
-{
-  "id": "hello",
-  "name": { "de": "Hallo Welt", "en": "Hello World" },
-  "version": "0.1.0",
-  "description": { "de": "Beispiel-Addon", "en": "Example addon" },
-  "apiVersion": 1,
-  "entry": "index.js"
-}

@@ -23,17 +23,6 @@ export default defineConfig({
     evccConfig: "e2e/fixtures/evcc.yaml",
     zips: seedZips(),
     prepare: "e2e/seed.mjs",
-    extra: [
-      {
-        command: "node e2e/start-fake-tapo.mjs",
-        cwd: root,
-        url: "http://127.0.0.1:17090/_test/state",
-        timeout: 30_000,
-        reuseExistingServer: false,
-        stdout: "ignore",
-        stderr: "pipe",
-      },
-    ],
   }),
   projects: [
     { name: "setup", testMatch: /.*\.setup\.ts/ },

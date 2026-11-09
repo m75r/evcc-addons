@@ -9,8 +9,7 @@
     "node": ">=22"
   },
   "workspaces": [
-    "packages/*",
-    "addons/*"
+    "packages/*"
   ],
   "scripts": {
     "build": "npm run build -w @evcc-addons/sdk && npm run build --workspaces --if-present",

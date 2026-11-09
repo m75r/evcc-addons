@@ -143,11 +143,11 @@ Hinweise:
 
 ## Addons
 
-Die Addons haben eigene Repositories, Versionen und Releases. Bis zur Ausgliederung liegen sie unter [addons/](addons/), jeweils mit eigener README.
+Die Addons haben eigene Repositories, Versionen und Releases:
 
-- **Verbraucher** (`consumers`, [README](addons/consumers/README.md), [Releases](https://github.com/m75r/evcc-addon-consumers/releases)): Tab „Verbraucher“ mit Ladepunkten mit Steckdose und Verbraucher-Metern aus evcc, live, gegliedert nach „Schaltbar“ und „Nur Messung“. Buttons liefern Steckdosen-Addons über den Erweiterungspunkt `consumers.cardActions`.
-- **Tapo-Steckdosen** (`switches-tapo`, [README](addons/switches-tapo/README.md), [Releases](https://github.com/m75r/evcc-addon-switches-tapo/releases)): Gateway für TP-Link-Tapo-Steckdosen (KLAP) als Server-Teil. Erkennt Schaltungen am Gerät und stellt den Modus des Ladepunkts um, misst Verbraucher, liefert ⏻ ☀ bzw. ⏻ für „Verbraucher“. Verwaltung im Dialog „Tapo-Steckdosen“.
-- **Hallo Welt** (`hello`, [README](addons/hello/README.md), [Releases](https://github.com/m75r/evcc-addon-hello/releases)): Beispiel-Addon mit Menüeintrag und einer Seite mit der PV-Leistung.
+- **Verbraucher** ([m75r/evcc-addon-consumers](https://github.com/m75r/evcc-addon-consumers), [Releases](https://github.com/m75r/evcc-addon-consumers/releases)): Tab „Verbraucher“ mit Ladepunkten mit Steckdose und Verbraucher-Metern aus evcc, live, gegliedert nach „Schaltbar“ und „Nur Messung“. Buttons liefern Steckdosen-Addons über den Erweiterungspunkt `consumers.cardActions`.
+- **Tapo-Steckdosen** ([m75r/evcc-addon-switches-tapo](https://github.com/m75r/evcc-addon-switches-tapo), [Releases](https://github.com/m75r/evcc-addon-switches-tapo/releases)): Gateway für TP-Link-Tapo-Steckdosen (KLAP) als Server-Teil. Erkennt Schaltungen am Gerät und stellt den Modus des Ladepunkts um, misst Verbraucher, liefert ⏻ ☀ bzw. ⏻ für „Verbraucher“. Verwaltung im Dialog „Tapo-Steckdosen“.
+- **Hallo Welt** ([m75r/evcc-addon-hello](https://github.com/m75r/evcc-addon-hello), [Releases](https://github.com/m75r/evcc-addon-hello/releases)): Beispiel-Addon mit Menüeintrag und einer Seite mit der PV-Leistung.
 
 ## Upgrade auf 2.0.0
 

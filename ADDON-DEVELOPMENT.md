@@ -160,7 +160,7 @@ const off = api.extensions.onChange("consumers.cardActions", render);
 
 #### Beispiel: `consumers.cardActions`
 
-Das Addon „Verbraucher“ definiert den Erweiterungspunkt `consumers.cardActions`. Steckdosen-Addons liefern darüber Buttons für Karten der Seite „Verbraucher“. Der Vertrag steht in `addons/consumers/src/extension-contract.ts`:
+Das Addon „Verbraucher“ definiert den Erweiterungspunkt `consumers.cardActions`. Steckdosen-Addons liefern darüber Buttons für Karten der Seite „Verbraucher“. Der Vertrag steht in [`src/extension-contract.ts`](https://github.com/m75r/evcc-addon-consumers/blob/main/src/extension-contract.ts) von evcc-addon-consumers:
 
 ```ts
 type CardRef =

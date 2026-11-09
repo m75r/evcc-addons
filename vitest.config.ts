@@ -1,4 +1,4 @@
-// Vitest-Projekte: SDK und Proxy (Node), Loader und Addons (happy-dom), Server-Teile der Addons (Node)
+// Vitest-Projekte: SDK und Proxy (Node), Loader (happy-dom)
 import { defaultClientConditions, defaultServerConditions } from "vite";
 import { defineConfig } from "vitest/config";
 import { cssAsText } from "./packages/sdk/src/vitest.js";
@@ -37,25 +37,6 @@ export default defineConfig({
           root: "packages/loader",
           environment: "happy-dom",
           include: ["test/**/*.test.{ts,tsx}"],
-        },
-      },
-      {
-        oxc: jsx,
-        plugins: [cssAsText()],
-        test: {
-          name: "addons",
-          environment: "happy-dom",
-          include: ["addons/*/test/**/*.test.{ts,tsx}"],
-          exclude: ["addons/*/test/server/**"],
-          passWithNoTests: true,
-        },
-      },
-      {
-        test: {
-          name: "addons-server",
-          environment: "node",
-          include: ["addons/*/test/server/**/*.test.ts"],
-          passWithNoTests: true,
         },
       },
     ],

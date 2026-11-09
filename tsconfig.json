@@ -11,15 +11,6 @@
       "path": "packages/loader"
     },
     {
-      "path": "addons/hello"
-    },
-    {
-      "path": "addons/consumers"
-    },
-    {
-      "path": "addons/switches-tapo"
-    },
-    {
       "path": "e2e"
     },
     {

@@ -1,4 +1,5 @@
-# evcc-Konfiguration für die E2E-Tests (Vorlage: evcc tests/basics.evcc.yaml)
+# evcc-Konfiguration für die E2E-Tests der Plattform (Vorlage: evcc tests/basics.evcc.yaml):
+# Netz, PV (4321 W) und der Ladepunkt „Carport“
 interval: 0.1s
 
 site:
@@ -7,11 +8,6 @@ site:
     grid: grid
     pv:
       - pv
-    consumer:
-      - kuehlschrank
-      - kaffee
-    aux:
-      - heizstab
 
 meters:
   - name: grid
@@ -26,30 +22,6 @@ meters:
       source: js
       script: |
         4321
-  - name: kuehlschrank
-    type: custom
-    power:
-      source: js
-      script: |
-        120
-    energy:
-      source: js
-      script: |
-        57.5
-  # Verbraucher über das Gateway von switches-tapo (Fake-Tapo 17091, Steckdose „kaffee“ aus switches-v2.json);
-  # ohne title, consumers zeigt dann den Namen „kaffee“ und die Bindung nutzt ihn
-  - name: kaffee
-    type: custom
-    power:
-      source: http
-      uri: http://host.docker.internal:17080/addons-api/ext/switches-tapo/kaffee/c0ffeec0ffeec0ffeec0ffeec0ffeec0ffeec0ffeec0ffeec0ffeec0ffeec0ff/state
-      jq: .power // 0
-  - name: heizstab
-    type: custom
-    power:
-      source: js
-      script: |
-        1500
   - name: charger_meter
     type: custom
     power:
@@ -62,50 +34,8 @@ loadpoints:
     charger: charger
     meter: charger_meter
     mode: now
-  # Steckdosen-Ladepunkt (Feature SwitchDevice) für das Verbraucher-Addon
-  - title: Waschmaschine
-    charger: socket
-    mode: off
-  # Tapo-Steckdose über das Gateway des Addons switches-tapo (Fake-Tapo, Steckdose „lampe“ aus switches.json)
-  - title: Lampe
-    charger: lampe
-    mode: off
 
 chargers:
-  - name: lampe
-    type: switchsocket
-    enabled:
-      source: http
-      uri: http://host.docker.internal:17080/addons-api/ext/switches-tapo/lampe/e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0/state
-      jq: .on
-    enable:
-      source: http
-      uri: http://host.docker.internal:17080/addons-api/ext/switches-tapo/lampe/e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0/set?on={{.enable}}
-      method: POST
-    power:
-      source: http
-      uri: http://host.docker.internal:17080/addons-api/ext/switches-tapo/lampe/e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0/state
-      jq: .power
-    standbypower: 0
-    features:
-      - switchdevice
-      - integrateddevice
-  # entspricht dem evcc-Template demo-switch (enabled: true, power: 150), das evcc/evcc:latest
-  # (0.318) noch nicht enthält
-  - name: socket
-    type: switchsocket
-    enabled:
-      source: const
-      value: true
-    enable:
-      source: js
-      script:
-    power:
-      source: const
-      value: 150
-    standbypower: 0
-    features:
-      - switchdevice
   - name: charger
     type: custom
     enable:
