@@ -166,8 +166,8 @@ export const MESSAGES = {
   "switches.copy": { de: "Kopieren", en: "Copy" },
   "switches.copied": { de: "Kopiert", en: "Copied" },
   "switches.copyError": {
-    de: "Kopieren nicht möglich: {message}",
-    en: "Could not copy: {message}",
+    de: "Kopieren nicht möglich ({message}). Die YAML ist markiert, bitte mit ⌘C bzw. Strg+C kopieren.",
+    en: "Could not copy ({message}). The YAML is selected, please copy it with ⌘C or Ctrl+C.",
   },
   "switches.renew": { de: "Token erneuern", en: "Renew token" },
   "switches.renew.confirm": {
@@ -189,6 +189,11 @@ export const MESSAGES = {
   "switches.type.tapo": { de: "TP-Link Tapo (KLAP)", en: "TP-Link Tapo (KLAP)" },
   "switches.password.keep": { de: "leer = unverändert", en: "empty = unchanged" },
   "switches.loadpoint.notFound": { de: "{title} (nicht gefunden)", en: "{title} (not found)" },
+  "switches.loadpoint.choose": { de: "– Ladepunkt wählen –", en: "– Choose loadpoint –" },
+  "switches.host.unknown": {
+    de: "Adresse nicht in der evcc-Konfiguration gefunden, bitte eintragen.",
+    en: "Address not found in the evcc configuration, please enter it.",
+  },
   "switches.loadpoint.loading": { de: "Ladepunkte werden geladen …", en: "Loading loadpoints …" },
   "switches.loadpoint.unavailable": {
     de: "Ladepunkte konnten nicht geladen werden ({message}). Titel bitte von Hand eintragen.",

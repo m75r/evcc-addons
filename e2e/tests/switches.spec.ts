@@ -79,11 +79,15 @@ test("Steckdose anlegen, Token erneuern und löschen", async ({ page }) => {
   await loginViaUi(page);
   await page.getByTestId("switches-new").click();
   const modal = page.getByTestId("switch-modal");
+  // Ladepunkt steht oben; die Auswahl übernimmt den Titel als Name. Der Charger von „Lampe“ ist
+  // keine Tapo aus der evcc-Oberfläche, daher bleibt die Adresse offen
+  await modal.getByTestId("switch-field-loadpoint").selectOption("Lampe");
+  await expect(modal.getByTestId("switch-field-name")).toHaveValue("Lampe");
+  await expect(modal.getByTestId("switch-host-unknown")).toBeVisible();
   await modal.getByTestId("switch-field-name").fill("Test");
   await modal.getByTestId("switch-field-host").fill("127.0.0.1:17090");
   await modal.getByTestId("switch-field-user").fill("ich@example.com");
   await modal.getByTestId("switch-field-password").fill("tapo-secret");
-  await modal.getByTestId("switch-field-loadpoint").selectOption("Lampe");
   await modal.getByTestId("switch-modal-save").click();
   await expect(modal).toHaveCount(0);
 

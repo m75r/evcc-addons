@@ -7,7 +7,8 @@ import {
   randomBytes,
   timingSafeEqual,
 } from "node:crypto";
-import { errorMessage, fetchErrorMessage, isRecord } from "../../util.js";
+import { errorMessage, isRecord } from "../../util.js";
+import { postBinary, type PostResult } from "./http.js";
 
 export interface KlapKeys {
   key: Buffer;
@@ -113,30 +114,17 @@ export interface KlapOptions {
   now?: () => number;
 }
 
-interface PostResult {
-  status: number;
-  body: Buffer;
-  setCookie: string[];
-}
-
+/** Netzfehler und Timeouts werden zu KlapError("network") */
 async function post(
   opts: KlapOptions,
   path: string,
   body: Buffer,
   cookie?: string,
 ): Promise<PostResult> {
-  let res: Response;
   try {
-    res = await fetch(`http://${opts.host}${path}`, {
-      method: "POST",
-      headers: { "content-type": "application/octet-stream", ...(cookie ? { cookie } : {}) },
-      body: new Uint8Array(body),
-      signal: AbortSignal.timeout(opts.timeoutMs),
-    });
-    const data = Buffer.from(await res.arrayBuffer());
-    return { status: res.status, body: data, setCookie: res.headers.getSetCookie() };
+    return await postBinary(`http://${opts.host}${path}`, body, cookie, opts.timeoutMs);
   } catch (err) {
-    throw new KlapError("network", fetchErrorMessage(err, opts.timeoutMs), { cause: err });
+    throw new KlapError("network", errorMessage(err), { cause: err });
   }
 }
 

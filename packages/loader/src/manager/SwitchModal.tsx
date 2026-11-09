@@ -11,6 +11,8 @@ export interface SwitchModalProps {
   /** null = neu anlegen */
   initial: SwitchInfo | null;
   loadTitles: () => Promise<string[]>;
+  /** Adresse der Tapo-Steckdose je Ladepunkt-Titel aus der evcc-Konfiguration */
+  loadHosts: () => Promise<Record<string, string>>;
   save: (input: SwitchInput) => Promise<SwitchInfo>;
   /** `changed`: es wurde gespeichert, die Liste muss neu geladen werden */
   onClose: (changed: boolean) => void;
@@ -31,19 +33,46 @@ function initialDraft(initial: SwitchInfo | null): SwitchInput {
   };
 }
 
-/** Lädt die Ladepunkt-Titel; beim Anlegen wird der erste vorausgewählt */
-function useTitles(props: SwitchModalProps, setDefault: (title: string) => void): Titles {
+/** Lädt die Ladepunkt-Titel für die Auswahl */
+function useTitles(props: SwitchModalProps): Titles {
   const [titles, setTitles] = useState<Titles>({ kind: "loading" });
   useEffect(() => {
     props.loadTitles().then(
-      (list) => {
-        setTitles({ kind: "ready", list });
-        if (list.length > 0) setDefault(list[0]);
-      },
+      (list) => setTitles({ kind: "ready", list }),
       (err: unknown) => setTitles({ kind: "error", message: errorText(err, props.locale) }),
     );
   }, []);
   return titles;
+}
+
+/** Adressen je Ladepunkt; ohne Zugriff auf die evcc-Konfiguration bleibt die Zuordnung leer */
+function useHosts(props: SwitchModalProps): Record<string, string> {
+  const [hosts, setHosts] = useState<Record<string, string>>({});
+  useEffect(() => {
+    props.loadHosts().then(setHosts, () => {
+      // Kein Fehlerfall für das Formular: Die Adresse wird dann von Hand eingetragen
+      setHosts({});
+    });
+  }, []);
+  return hosts;
+}
+
+const NAME_MAX = 60;
+
+/** Auswahl eines Ladepunkts übernimmt dessen Titel als Name und, falls bekannt, die Adresse */
+function useLoadpointChoice(
+  props: SwitchModalProps,
+  update: (change: Partial<SwitchInput>) => void,
+) {
+  const titles = useTitles(props);
+  const hosts = useHosts(props);
+  const [hostMissing, setHostMissing] = useState(false);
+  const choose = (title: string) => {
+    const host = hosts[title];
+    update({ loadpoint: title, name: title.slice(0, NAME_MAX), ...(host ? { host } : {}) });
+    setHostMissing(title !== "" && !host);
+  };
+  return { titles, hostMissing, choose };
 }
 
 /** Speichern; ein Verbindungsfehler lässt das Modal mit Hinweis offen */
@@ -78,9 +107,7 @@ export function SwitchModal(props: SwitchModalProps) {
   const { locale, initial } = props;
   const [draft, setDraft] = useState<SwitchInput>(() => initialDraft(initial));
   const update = (change: Partial<SwitchInput>) => setDraft((prev) => ({ ...prev, ...change }));
-  const titles = useTitles(props, (title) =>
-    setDraft((prev) => (prev.loadpoint === "" ? { ...prev, loadpoint: title } : prev)),
-  );
+  const { titles, hostMissing, choose } = useLoadpointChoice(props, update);
   const { busy, error, warning, submit } = useSubmit(props);
   const saved = warning !== null;
   const close = () => !busy && props.onClose(saved);
@@ -98,8 +125,10 @@ export function SwitchModal(props: SwitchModalProps) {
         draft={draft}
         editing={initial !== null}
         titles={titles}
+        hostMissing={hostMissing}
         disabled={busy || saved}
         onChange={update}
+        onChooseLoadpoint={choose}
       />
       <ModalFooter
         locale={locale}
@@ -118,11 +147,15 @@ interface FieldsProps {
   draft: SwitchInput;
   editing: boolean;
   titles: Titles;
+  /** Gewählter Ladepunkt ohne bekannte Adresse: Hinweis unter dem Adressfeld */
+  hostMissing: boolean;
   disabled: boolean;
   onChange: (change: Partial<SwitchInput>) => void;
+  onChooseLoadpoint: (title: string) => void;
 }
 
-function SwitchFields({ locale, draft, editing, titles, disabled, onChange }: FieldsProps) {
+function SwitchFields(props: FieldsProps) {
+  const { locale, draft, editing, disabled, onChange } = props;
   const text = (
     key: "name" | "host" | "user",
     extra: InputHTMLAttributes<HTMLInputElement> = {},
@@ -139,6 +172,15 @@ function SwitchFields({ locale, draft, editing, titles, disabled, onChange }: Fi
   );
   return (
     <>
+      <FormRow locale={locale} field="loadpoint">
+        <LoadpointInput
+          locale={locale}
+          value={draft.loadpoint}
+          titles={props.titles}
+          disabled={disabled}
+          onChange={props.onChooseLoadpoint}
+        />
+      </FormRow>
       <FormRow locale={locale} field="name">
         {text("name", { maxLength: 60 })}
       </FormRow>
@@ -154,7 +196,14 @@ function SwitchFields({ locale, draft, editing, titles, disabled, onChange }: Fi
         </select>
       </FormRow>
       <FormRow locale={locale} field="host">
-        {text("host", { placeholder: "192.168.1.50", inputMode: "url" })}
+        <>
+          {text("host", { placeholder: "192.168.1.50", inputMode: "url" })}
+          {props.hostMissing && (
+            <div class="form-text" data-testid="switch-host-unknown">
+              {t("switches.host.unknown", locale)}
+            </div>
+          )}
+        </>
       </FormRow>
       <FormRow locale={locale} field="user">
         {text("user", { type: "email", autoComplete: "off" })}
@@ -170,15 +219,6 @@ function SwitchFields({ locale, draft, editing, titles, disabled, onChange }: Fi
           value={draft.password}
           disabled={disabled}
           onInput={(e) => onChange({ password: e.currentTarget.value })}
-        />
-      </FormRow>
-      <FormRow locale={locale} field="loadpoint">
-        <LoadpointInput
-          locale={locale}
-          value={draft.loadpoint}
-          titles={titles}
-          disabled={disabled}
-          onChange={(loadpoint) => onChange({ loadpoint })}
         />
       </FormRow>
     </>
@@ -236,6 +276,9 @@ function LoadpointInput({ locale, value, titles, disabled, onChange }: Loadpoint
     >
       {titles.kind === "loading" && (
         <option value={value}>{t("switches.loadpoint.loading", locale)}</option>
+      )}
+      {titles.kind === "ready" && value === "" && (
+        <option value="">{t("switches.loadpoint.choose", locale)}</option>
       )}
       {missing && (
         <option value={value}>{t("switches.loadpoint.notFound", locale, { title: value })}</option>

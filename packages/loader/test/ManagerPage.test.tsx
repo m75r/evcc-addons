@@ -66,6 +66,7 @@ function fakeClient(session: Session, overrides: Partial<ManagerClient> = {}): M
     deleteSwitch: vi.fn(() => Promise.resolve()),
     renewSwitchToken: vi.fn(() => Promise.resolve("t")),
     listLoadpointTitles: vi.fn(() => Promise.resolve([])),
+    listLoadpointHosts: vi.fn(() => Promise.resolve({})),
     ...overrides,
   };
 }

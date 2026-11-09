@@ -54,6 +54,7 @@ function fakeClient(list: SwitchInfo[], overrides: Partial<ManagerClient> = {}) 
     deleteSwitch: vi.fn(() => Promise.resolve()),
     renewSwitchToken: vi.fn(() => Promise.resolve("cd".repeat(32))),
     listLoadpointTitles: vi.fn(() => Promise.resolve(["Carport", "Dyson (Wohnzimmer)"])),
+    listLoadpointHosts: vi.fn(() => Promise.resolve({ "Dyson (Wohnzimmer)": "192.168.1.77" })),
     ...overrides,
   } as unknown as ManagerClient;
 }
@@ -61,11 +62,12 @@ function fakeClient(list: SwitchInfo[], overrides: Partial<ManagerClient> = {}) 
 interface MountOptions {
   canManage?: boolean;
   confirm?: boolean;
+  copy?: (text: string) => Promise<void>;
 }
 
 async function mount(client: ManagerClient, opts: MountOptions = {}) {
   const onUnauthorized = vi.fn();
-  const copy = vi.fn(() => Promise.resolve());
+  const copy = vi.fn(opts.copy ?? (() => Promise.resolve()));
   await act(async () => {
     render(
       <SwitchSection
@@ -99,7 +101,17 @@ async function type(testId: string, value: string) {
   });
 }
 
+async function choose(title: string) {
+  await act(async () => {
+    const select = q("switch-field-loadpoint") as HTMLSelectElement;
+    select.value = title;
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+    await tick();
+  });
+}
+
 async function fillForm() {
+  await choose("Carport");
   await type("switch-field-name", "Lampe");
   await type("switch-field-host", "192.168.1.60");
   await type("switch-field-user", "ich@example.com");
@@ -194,7 +206,9 @@ describe("SwitchSection: Formular", () => {
     await mount(client);
     await click("switches-new");
     expect(q("switch-modal")?.textContent).toContain("Steckdose hinzufügen");
-    expect((q("switch-field-loadpoint") as HTMLSelectElement).value).toBe("Carport");
+    const select = q("switch-field-loadpoint") as HTMLSelectElement;
+    expect(select.value).toBe("");
+    expect(select.options[0].textContent).toBe("– Ladepunkt wählen –");
     expect((q("switch-field-type") as HTMLSelectElement).value).toBe("tapo");
     await fillForm();
     await click("switch-modal-save");
@@ -208,6 +222,32 @@ describe("SwitchSection: Formular", () => {
     });
     expect(q("switch-modal")).toBeNull();
     expect(client.listSwitches).toHaveBeenCalledTimes(2);
+  });
+
+  it("stellt den Ladepunkt an den Anfang und übernimmt Name und Adresse", async () => {
+    await mount(fakeClient([]));
+    await click("switches-new");
+    const ids = [...root.querySelectorAll("[data-testid^='switch-field-']")].map((el) =>
+      el.getAttribute("data-testid"),
+    );
+    expect(ids[0]).toBe("switch-field-loadpoint");
+    await choose("Dyson (Wohnzimmer)");
+    expect((q("switch-field-name") as HTMLInputElement).value).toBe("Dyson (Wohnzimmer)");
+    expect((q("switch-field-host") as HTMLInputElement).value).toBe("192.168.1.77");
+    expect(q("switch-host-unknown")).toBeNull();
+  });
+
+  it("weist auf eine unbekannte Adresse hin und lässt eine eingetragene stehen", async () => {
+    const failing = vi.fn(() => Promise.reject(new ApiError(401, "evcc-error", "evcc: HTTP 401")));
+    await mount(fakeClient([], { listLoadpointHosts: failing }));
+    await click("switches-new");
+    await type("switch-field-host", "10.0.0.5");
+    await choose("Carport");
+    expect((q("switch-field-name") as HTMLInputElement).value).toBe("Carport");
+    expect((q("switch-field-host") as HTMLInputElement).value).toBe("10.0.0.5");
+    expect(q("switch-host-unknown")?.textContent).toBe(
+      "Adresse nicht in der evcc-Konfiguration gefunden, bitte eintragen.",
+    );
   });
 
   it("bleibt bei Verbindungsfehler offen und schließt erst mit „Schließen“", async () => {
@@ -312,5 +352,16 @@ describe("SwitchSection: Löschen und evcc-Konfiguration", () => {
     await click("switch-token-renew");
     expect(client.renewSwitchToken).toHaveBeenCalledWith("a1b2c3d4");
     expect(client.listSwitches).toHaveBeenCalledTimes(2);
+  });
+
+  it("markiert die YAML, wenn Kopieren nicht möglich ist", async () => {
+    const copy = () => Promise.reject(new Error("Der Browser hat das Kopieren abgelehnt"));
+    await mount(fakeClient([SWITCH]), { copy });
+    await click("switch-yaml-toggle");
+    await click("switch-yaml-copy");
+    expect(q("switch-yaml-copied")?.textContent).toBe(
+      "Kopieren nicht möglich (Der Browser hat das Kopieren abgelehnt). Die YAML ist markiert, bitte mit ⌘C bzw. Strg+C kopieren.",
+    );
+    expect(window.getSelection()?.toString()).toContain("enabled:");
   });
 });

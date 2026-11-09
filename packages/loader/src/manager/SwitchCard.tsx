@@ -1,7 +1,8 @@
 // Karte einer Steckdose: Status, Ladepunkt, Warnungen; für Admins Adresse, YAML und Aktionen
-import { useState } from "preact/hooks";
+import { useRef, useState } from "preact/hooks";
 import type { SwitchInfo, SwitchStatus } from "../addons-client.js";
 import { t } from "../i18n.js";
+import { selectContents } from "./clipboard.js";
 import { errorText } from "./errors.js";
 import { buildSwitchYaml } from "./switch-yaml.js";
 import { useAction } from "./useAction.js";
@@ -173,17 +174,20 @@ interface YamlPanelProps extends SwitchCardProps {
 function YamlPanel({ info, locale, pageBase, actions, busy, onRenew }: YamlPanelProps) {
   const yaml = buildSwitchYaml(info, pageBase);
   const [copied, setCopied] = useState<string | null>(null);
+  const pre = useRef<HTMLPreElement>(null);
   const copy = async () => {
     try {
       await actions.copy(yaml);
       setCopied(t("switches.copied", locale));
     } catch (err) {
+      // Ohne Zwischenablage bleibt der markierte Text zum Kopieren von Hand
+      if (pre.current) selectContents(pre.current);
       setCopied(t("switches.copyError", locale, { message: errorText(err, locale) }));
     }
   };
   return (
     <div class="mt-3">
-      <pre class="evcc-addons-yaml small p-2 mb-2 rounded" data-testid="switch-yaml">
+      <pre ref={pre} class="evcc-addons-yaml small p-2 mb-2 rounded" data-testid="switch-yaml">
         {yaml}
       </pre>
       <div class="d-flex flex-wrap align-items-center gap-2">

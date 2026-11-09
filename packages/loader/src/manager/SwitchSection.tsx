@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "preact/hooks";
 import type { ManagerClient, SwitchInfo } from "../addons-client.js";
 import { pageBase } from "../evcc-api.js";
 import { t } from "../i18n.js";
+import { copyText } from "./clipboard.js";
 import { errorText } from "./errors.js";
 import { NewButton } from "./NewButton.js";
 import { SwitchCard, type SwitchActions } from "./SwitchCard.js";
@@ -18,7 +19,7 @@ export interface SwitchSectionProps {
   onUnauthorized: () => void;
   /** Standard: Adresse der aktuellen Seite */
   pageBase?: string;
-  /** Standard: navigator.clipboard */
+  /** Standard: Zwischenablage, über HTTP mit Rückfall auf execCommand */
   copy?: (text: string) => Promise<void>;
 }
 
@@ -56,7 +57,7 @@ export function SwitchSection(props: SwitchSectionProps) {
     edit: (info) => setModal(info),
     remove: (id) => client.deleteSwitch(id),
     renewToken: (id) => client.renewSwitchToken(id),
-    copy: props.copy ?? ((text) => navigator.clipboard.writeText(text)),
+    copy: props.copy ?? copyText,
     confirm: props.confirm,
     reload: refresh,
     onUnauthorized: props.onUnauthorized,
@@ -73,6 +74,7 @@ export function SwitchSection(props: SwitchSectionProps) {
           locale={locale}
           initial={modal}
           loadTitles={() => client.listLoadpointTitles()}
+          loadHosts={() => client.listLoadpointHosts()}
           save={save}
           onClose={(changed) => {
             setModal(undefined);

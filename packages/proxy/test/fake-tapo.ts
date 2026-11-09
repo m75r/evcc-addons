@@ -127,6 +127,10 @@ async function handle(
   const body = await readBody(req);
   if (url.pathname.startsWith("/_test/")) return control(url, req.method, res, fake);
   if (fake.state.hang) return;
+  // Wie die echte Firmware (P110, 2026-11): `content-length` statt `Content-Length` ergibt 400
+  if (!req.url?.startsWith("/_test/") && !req.rawHeaders.includes("Content-Length")) {
+    return void res.writeHead(400).end();
+  }
   if (url.pathname === "/app/handshake1") return handshake1(body, res, fake, sessions, hash);
   const session = sessions.get(sessionIdOf(req) ?? "");
   if (!session) return void res.writeHead(403).end();

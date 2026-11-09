@@ -205,18 +205,68 @@ export async function renewSwitchToken(id: string): Promise<string> {
   return ((await res.json()) as { token: string }).token;
 }
 
-/** Titel der evcc-Ladepunkte in evcc-Reihenfolge (ohne Anmeldung lesbar) */
-export async function listLoadpointTitles(): Promise<string[]> {
+/** GET auf die evcc-API mit einheitlichen Fehlern */
+async function evccJson(path: string): Promise<unknown> {
   let res: Response;
   try {
-    res = await evccApi(`state?jq=${encodeURIComponent("[.loadpoints[].title]")}`);
+    res = await evccApi(path);
   } catch (err) {
     throw new ApiError(0, "network", `evcc nicht erreichbar: ${(err as Error).message}`);
   }
   if (!res.ok) throw new ApiError(res.status, "evcc-error", `evcc: HTTP ${res.status}`);
-  const titles = (await res.json()) as unknown;
-  if (!Array.isArray(titles)) throw new ApiError(res.status, "evcc-error", "Keine Ladepunkt-Liste");
+  try {
+    return await res.json();
+  } catch (err) {
+    throw new ApiError(res.status, "evcc-error", `Antwort nicht lesbar: ${(err as Error).message}`);
+  }
+}
+
+/** Titel der evcc-Ladepunkte in evcc-Reihenfolge (ohne Anmeldung lesbar) */
+export async function listLoadpointTitles(): Promise<string[]> {
+  const titles = await evccJson(`state?jq=${encodeURIComponent("[.loadpoints[].title]")}`);
+  if (!Array.isArray(titles)) throw new ApiError(200, "evcc-error", "Keine Ladepunkt-Liste");
   return titles.map((title) => (typeof title === "string" ? title : ""));
+}
+
+/**
+ * Adresse der Tapo-Steckdose je Ladepunkt-Titel aus der evcc-Konfiguration (nur mit Admin-Login).
+ * Bekannt ist sie nur für Charger, die in der evcc-Oberfläche angelegt wurden.
+ */
+export async function listLoadpointHosts(): Promise<Record<string, string>> {
+  const [loadpoints, chargers] = await Promise.all([
+    evccJson("config/loadpoints"),
+    evccJson("config/devices/charger"),
+  ]);
+  return loadpointHosts(loadpoints, chargers);
+}
+
+type JsonObject = Record<string, unknown>;
+
+function objects(value: unknown): JsonObject[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((entry): entry is JsonObject => typeof entry === "object" && entry !== null);
+}
+
+/** Host eines Tapo-Chargers (Template `tapo` oder Typ `tapo`), sonst null */
+function tapoHost(charger: JsonObject): string | null {
+  const config = (charger.config ?? {}) as JsonObject;
+  const isTapo = config.template === "tapo" || charger.type === "tapo";
+  return isTapo && typeof config.host === "string" && config.host !== "" ? config.host : null;
+}
+
+/** Verknüpft Ladepunkte (title, charger) mit den Chargern (name, config.host) */
+export function loadpointHosts(loadpoints: unknown, chargers: unknown): Record<string, string> {
+  const hosts = new Map<string, string>();
+  for (const charger of objects(chargers)) {
+    const host = tapoHost(charger);
+    if (host && typeof charger.name === "string") hosts.set(charger.name, host);
+  }
+  const result: Record<string, string> = {};
+  for (const lp of objects(loadpoints)) {
+    const host = typeof lp.charger === "string" ? hosts.get(lp.charger) : undefined;
+    if (host && typeof lp.title === "string") result[lp.title] = host;
+  }
+  return result;
 }
 
 /** Alle Aufrufe der Seite „Addons“, austauschbar für Tests */
@@ -234,6 +284,7 @@ export interface ManagerClient {
   deleteSwitch: (id: string) => Promise<void>;
   renewSwitchToken: (id: string) => Promise<string>;
   listLoadpointTitles: () => Promise<string[]>;
+  listLoadpointHosts: () => Promise<Record<string, string>>;
 }
 
 export const managerClient: ManagerClient = {
@@ -250,4 +301,5 @@ export const managerClient: ManagerClient = {
   deleteSwitch,
   renewSwitchToken,
   listLoadpointTitles,
+  listLoadpointHosts,
 };
