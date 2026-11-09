@@ -1,25 +1,39 @@
-// Baut die E2E-Fixture-Addons und installiert den Seed-Zustand per CLI
+// Baut die E2E-Fixtures nach e2e/.build; als Skript aufgerufen (prepare von e2eWebServers) vor dem Proxy-Start
 import { strToU8, zipSync } from "fflate";
 import { execFileSync } from "node:child_process";
-import { chmodSync, copyFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 export const root = resolve(import.meta.dirname, "..");
-export const configPath = resolve(root, "e2e/fixtures/proxy.config.json");
-const serverPath = resolve(root, "packages/proxy/dist/server.mjs");
-const buildAddon = resolve(root, "scripts/build-addon.mjs");
+const cli = resolve(root, "packages/sdk/bin/evcc-addon.mjs");
+const out = resolve(root, "e2e/.build");
+const FIXTURES = [
+  "test-addon",
+  "broken-addon",
+  "menu-addon",
+  "server-addon",
+  "broken-server-addon",
+  "ext-provider",
+  "ext-consumer",
+];
 
-function run(args) {
-  execFileSync(process.execPath, args, { cwd: root, stdio: ["ignore", "ignore", "inherit"] });
+/** Fixture bauen; LICENSE und THIRD_PARTY_NOTICES.md kommen aus der Repo-Wurzel */
+function buildFixture(name, ...args) {
+  const dir = resolve(root, "e2e/fixtures/addons", name);
+  execFileSync(process.execPath, [cli, "build", dir, "--out", out, "--legal-dir", root, ...args], {
+    cwd: root,
+    stdio: ["ignore", "ignore", "inherit"],
+  });
 }
 
-/** Baut Fixtures nach e2e/.build (test-addon zusätzlich als 0.2.0) und hello, falls es fehlt */
+/**
+ * Baut alle Fixtures (test-addon zusätzlich als 0.2.0) und ein Zip-Slip-Paket.
+ * Server-Addons und Erweiterungs-Fixtures stehen nicht in seed.json, die Specs installieren sie selbst.
+ */
 export function buildFixtures() {
-  const out = resolve(root, "e2e/.build");
-  run([buildAddon, "e2e/fixtures/addons/test-addon", "--out", out]);
-  run([buildAddon, "e2e/fixtures/addons/test-addon", "--out", out, "--version", "0.2.0"]);
-  run([buildAddon, "e2e/fixtures/addons/broken-addon", "--out", out]);
-  if (!existsSync(resolve(root, "dist/addons/hello-0.1.0.zip"))) run([buildAddon, "addons/hello"]);
+  for (const name of FIXTURES) buildFixture(name);
+  buildFixture("test-addon", "--version", "0.2.0");
   writeZipSlipFixture(resolve(out, "zip-slip.zip"));
 }
 
@@ -34,19 +48,16 @@ function writeZipSlipFixture(target) {
   writeFileSync(target, zip);
 }
 
+/** Seed-Addons (Pfade relativ zur Repo-Wurzel) */
 export function seedZips() {
-  const seed = JSON.parse(readFileSync(resolve(root, "e2e/fixtures/seed.json"), "utf8"));
-  return seed.zips.map((zip) => resolve(root, zip));
+  return JSON.parse(readFileSync(resolve(root, "e2e/fixtures/seed.json"), "utf8")).zips;
 }
 
-/** Setzt e2e/.data auf den Seed-Zustand zurück */
-export function resetAddons() {
-  run([serverPath, "install", "--config", configPath, "--reset", ...seedZips()]);
-}
-
-/** Steckdose „Lampe“ (Fake-Tapo auf 127.0.0.1:17090) nach e2e/.data/switches.json */
-export function seedSwitches(dataDir) {
-  const target = resolve(dataDir, "switches.json");
-  copyFileSync(resolve(root, "e2e/fixtures/switches.json"), target);
-  chmodSync(target, 0o600);
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  try {
+    buildFixtures();
+  } catch (err) {
+    process.stderr.write(`Fixtures nicht gebaut: ${err instanceof Error ? err.message : err}\n`);
+    process.exit(1);
+  }
 }

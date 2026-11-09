@@ -19,13 +19,10 @@ export type AddonErrorCode =
   | "admin-password-missing"
   | "demo-mode"
   | "evcc-unreachable"
-  | "origin-mismatch"
-  | "switch-invalid"
-  | "device-error";
+  | "origin-mismatch";
 
 const STATUS: Partial<Record<AddonErrorCode, number>> = {
   "not-found": 404,
-  "device-error": 502,
   "too-large": 413,
   "unsupported-media-type": 415,
   "login-required": 401,

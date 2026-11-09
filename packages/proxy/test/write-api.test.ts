@@ -1,6 +1,7 @@
+import { strToU8 } from "fflate";
 import http from "node:http";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { FAKE_COOKIE, startFakeEvcc, type FakeEvcc } from "./fake-evcc.js";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { FAKE_COOKIE, startFakeEvcc, type FakeEvcc } from "@evcc-addons/sdk/testing/fake-evcc";
 import { startTestProxy, type TestProxy } from "./helpers.js";
 import { addonZip } from "./zip-fixtures.js";
 
@@ -185,6 +186,68 @@ describe("PATCH /addons-api/addons/<id>/settings", () => {
     const res = await save({ values: {} }, { ...LOGIN, origin: "http://evil.example" });
     expect(res.status).toBe(403);
     expect(await errorCode(res)).toBe("origin-mismatch");
+  });
+});
+
+describe("Server-Addons", () => {
+  const SERVER = String.raw`export function activateServer(server) {
+  server.route("GET", /^\/echo$/, (_req, res) => server.http.sendJson(res, 200, { echo: true }));
+}`;
+  const serverZip = () =>
+    addonZip({ id: "srv", apiVersion: 2, server: "server.mjs" }, { "server.mjs": strToU8(SERVER) });
+  const echo = (id = "srv") => fetch(`${proxy.url}/addons-api/ext/${id}/echo`);
+
+  it("ruft den Host bei Installation, Umschalten und Einstellungen", async () => {
+    const host = proxy.proxy.serverAddons;
+    const sync = vi.spyOn(host, "sync");
+    const settingsChanged = vi.spyOn(host, "settingsChanged");
+    await upload(serverZip());
+    await api("addons/srv", "PATCH", { enabled: false });
+    await api("addons/srv/settings", "PATCH", { values: {} });
+    expect(sync.mock.calls).toEqual([["srv"], ["srv"]]);
+    expect(settingsChanged).toHaveBeenCalledWith("srv", {});
+  });
+
+  it("stoppt beim Deinstallieren vor dem Löschen", async () => {
+    await upload(serverZip());
+    const order: string[] = [];
+    vi.spyOn(proxy.proxy.serverAddons, "stop").mockImplementation(() => {
+      order.push("stop");
+      return Promise.resolve();
+    });
+    const remove = proxy.proxy.store.remove.bind(proxy.proxy.store);
+    vi.spyOn(proxy.proxy.store, "remove").mockImplementation(async (id) => {
+      order.push("remove");
+      await remove(id);
+    });
+    expect((await api("addons/srv", "DELETE")).status).toBe(204);
+    expect(order).toEqual(["stop", "remove"]);
+  });
+
+  it("leitet /addons-api/ext/<id>/… weiter, 404 für unbekannte und deaktivierte", async () => {
+    await upload(serverZip());
+    expect(await (await echo()).json()).toEqual({ echo: true });
+    const unknown = await echo("unbekannt");
+    expect(unknown.status).toBe(404);
+    expect(await errorCode(unknown)).toBe("not-found");
+    await api("addons/srv", "PATCH", { enabled: false });
+    expect((await echo()).status).toBe(404);
+    await api("addons/srv", "PATCH", { enabled: true });
+    expect((await echo()).status).toBe(200);
+  });
+
+  it("zeigt einen Startfehler im DTO der Installation", async () => {
+    const broken = addonZip(
+      { id: "srv", apiVersion: 2, server: "server.mjs" },
+      { "server.mjs": strToU8("export const nichts = 1;") },
+    );
+    const res = await upload(broken);
+    expect(await res.json()).toMatchObject({
+      addon: {
+        hasServer: true,
+        error: "Server-Teil: server.mjs exportiert keine Funktion activateServer",
+      },
+    });
   });
 });
 

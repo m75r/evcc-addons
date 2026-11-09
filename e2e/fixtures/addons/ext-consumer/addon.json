@@ -1,0 +1,8 @@
+{
+  "id": "ext-consumer",
+  "name": "Erweiterungs-Nutzer",
+  "version": "0.1.0",
+  "description": "Fixture: zeigt alle Einträge von fixture.badge",
+  "apiVersion": 2,
+  "entry": "index.js"
+}

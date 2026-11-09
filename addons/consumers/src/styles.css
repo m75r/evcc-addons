@@ -43,47 +43,10 @@
   margin: -0.25rem 0;
 }
 
-/* Modus-Gruppe wie evcc IconSelectGroup / IconSelectItem */
-.evcc-consumers-modes {
+/* Slots der Steckdosen-Addons (consumers.cardActions) im Kartenkopf, nebeneinander */
+.evcc-consumers-slots {
   display: flex;
   gap: 0.25rem;
-  border: var(--bs-border-width) solid var(--bs-border-color);
-  border-radius: 20px;
-  padding: 4px;
-}
-
-.evcc-consumers-mode-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  padding: 0;
-  border: none;
-  border-radius: 2rem;
-  background: transparent;
-  color: var(--evcc-default-text);
-  transition:
-    color 0.2s,
-    background-color 0.2s;
-}
-
-.evcc-consumers-mode-btn:hover:not(:disabled) {
-  color: var(--evcc-gray);
-}
-
-.evcc-consumers-mode-btn.active,
-.evcc-consumers-mode-btn.active:hover:not(:disabled) {
-  color: var(--evcc-background);
-  background: var(--evcc-default-text);
-}
-
-.evcc-consumers-mode-btn:disabled {
-  opacity: 0.65;
-}
-
-.evcc-consumers-mode-btn svg {
-  display: block;
 }
 
 /* Badge „offline“ wie evcc Badge in der Variante muted */

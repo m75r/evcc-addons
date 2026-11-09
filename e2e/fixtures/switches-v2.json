@@ -1,0 +1,31 @@
+{
+  "version": 2,
+  "switches": [
+    {
+      "id": "lampe",
+      "name": "Lampe",
+      "type": "tapo",
+      "host": "127.0.0.1:17090",
+      "user": "ich@example.com",
+      "password": "tapo-secret",
+      "token": "e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0",
+      "target": {
+        "kind": "loadpoint",
+        "title": "Lampe"
+      }
+    },
+    {
+      "id": "kaffee",
+      "name": "kaffee",
+      "type": "tapo",
+      "host": "127.0.0.1:17091",
+      "user": "ich@example.com",
+      "password": "tapo-secret",
+      "target": {
+        "kind": "consumer",
+        "title": "kaffee"
+      },
+      "token": "c0ffeec0ffeec0ffeec0ffeec0ffeec0ffeec0ffeec0ffeec0ffeec0ffeec0ff"
+    }
+  ]
+}

@@ -12,6 +12,8 @@ import { ManagerPage } from "./manager/ManagerPage.js";
 import { ADDONS_PATH } from "./nav/addons-item.js";
 import { NavRegistry } from "./nav/registry.js";
 import { currentPath, onRouteChange } from "./nav/router.js";
+import { ExtensionRegistry } from "./extensions.js";
+import { ManagerDialogRegistry } from "./manager/dialogs.js";
 import { errorText, PageHost } from "./page/host.js";
 import { loadAddons } from "./runtime.js";
 import { SettingsRegistry } from "./settings.js";
@@ -25,6 +27,8 @@ interface Core {
   nav: NavRegistry;
   state: SharedLiveState;
   settings: SettingsRegistry;
+  extensions: ExtensionRegistry;
+  dialogs: ManagerDialogRegistry;
   addonsLoaded: Promise<void>;
 }
 
@@ -43,6 +47,7 @@ function registerManager(core: Core): void {
     reload: () => window.location.reload(),
     confirm: (message: string) => window.confirm(message),
     onSettingsSaved: (addon: AddonInfo) => core.settings.set(addon.id, addon.settingValues),
+    dialogs: core.dialogs,
     version: loaderVersion(),
   };
   core.host.register(
@@ -124,6 +129,8 @@ export function start(): void {
     nav: new NavRegistry({ locale, currentPath }),
     state: createLiveState(),
     settings: new SettingsRegistry(),
+    extensions: new ExtensionRegistry(),
+    dialogs: new ManagerDialogRegistry(),
     addonsLoaded,
   };
   registerManager(core);

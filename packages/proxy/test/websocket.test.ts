@@ -1,6 +1,6 @@
 import net from "node:net";
 import { afterEach, describe, expect, it } from "vitest";
-import { WS_WELCOME, startFakeEvcc, type FakeEvcc } from "./fake-evcc.js";
+import { WS_WELCOME, startFakeEvcc, type FakeEvcc } from "@evcc-addons/sdk/testing/fake-evcc";
 import { startTestProxy, type TestProxy } from "./helpers.js";
 
 let evcc: FakeEvcc | undefined;

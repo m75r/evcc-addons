@@ -1,8 +1,14 @@
-import type { AddonApi, SettingValues } from "@evcc-addons/sdk";
+import type { AddonApi, ExtensionEntry, SettingValues } from "@evcc-addons/sdk";
 import { render } from "preact";
 import { act } from "preact/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ConsumersPage } from "../src/ConsumersPage.js";
+import {
+  CARD_ACTIONS,
+  type CardActionContext,
+  type CardActionsProvider,
+  type CardRef,
+} from "../src/extension-contract.js";
 
 type Listener = (value: unknown) => void;
 
@@ -37,11 +43,84 @@ function fakeSettings(initial: SettingValues) {
   return { settings, pushSettings, settingListeners: listeners };
 }
 
+/** api.extensions mit Anbietern von consumers.cardActions, die der Test hinzufügt */
+function fakeExtensions() {
+  const entries: ExtensionEntry[] = [];
+  const listeners = new Set<() => void>();
+  const notify = () => [...listeners].forEach((cb) => cb());
+  const extensions = {
+    provide: () => () => undefined,
+    get: <T,>(point: string) =>
+      (point === CARD_ACTIONS ? entries.map((entry) => ({ ...entry })) : []) as ExtensionEntry<T>[],
+    onChange: <T,>(_point: string, cb: (entries: ExtensionEntry<T>[]) => void) => {
+      const listener = () => cb([]);
+      listeners.add(listener);
+      return () => void listeners.delete(listener);
+    },
+  };
+  const addProvider = (addonId: string, value: CardActionsProvider) => {
+    const entry = { addonId, value };
+    entries.push(entry);
+    notify();
+    return () => {
+      entries.splice(entries.indexOf(entry), 1);
+      notify();
+    };
+  };
+  return { extensions, addProvider, extensionListeners: listeners };
+}
+
+interface FakeProvider extends CardActionsProvider {
+  claimed: Set<string>;
+  mounts: CardActionContext[];
+  updates: CardActionContext[];
+  destroys: string[];
+  subscribers: Set<() => void>;
+  /** Meldet geänderte Beanspruchungen an consumers */
+  notify(): void;
+}
+
+/** Anbieter, der Karten nach Titel beansprucht und einen Button `fake-<label>` rendert */
+function fakeProvider(label: string, claimed: string[] = []): FakeProvider {
+  const provider: FakeProvider = {
+    claimed: new Set(claimed),
+    mounts: [],
+    updates: [],
+    destroys: [],
+    subscribers: new Set(),
+    claims: (card: CardRef) => provider.claimed.has(card.title),
+    subscribe: (cb) => {
+      provider.subscribers.add(cb);
+      return () => void provider.subscribers.delete(cb);
+    },
+    mount: (slots, ctx) => {
+      provider.mounts.push(ctx);
+      slots.actions.innerHTML = `<button data-testid="fake-${label}">${label}</button>`;
+      return {
+        update: (next) => void provider.updates.push(next),
+        destroy: () => void provider.destroys.push(ctx.card.title),
+      };
+    },
+    notify: () => [...provider.subscribers].forEach((cb) => cb()),
+  };
+  return provider;
+}
+
+/** Beansprucht alle Ladepunkt-Karten (für Tests der Sortierung je Abschnitt) */
+function loadpointProvider(): CardActionsProvider {
+  return {
+    claims: (card) => card.kind === "loadpoint",
+    subscribe: () => () => undefined,
+    mount: () => ({ update: () => undefined, destroy: () => undefined }),
+  };
+}
+
 /** Fake-AddonApi mit steuerbaren Live-Daten und Einstellungen */
 function fakeApi(evccApi = routedEvccApi(notLoggedIn), initialSettings: SettingValues = {}) {
   const state: Record<string, unknown> = {};
   const listeners = new Map<string, Set<Listener>>();
   const { settings, pushSettings, settingListeners } = fakeSettings(initialSettings);
+  const { extensions, addProvider, extensionListeners } = fakeExtensions();
   const api = {
     id: "consumers",
     addTab: vi.fn(),
@@ -57,6 +136,9 @@ function fakeApi(evccApi = routedEvccApi(notLoggedIn), initialSettings: SettingV
     },
     settings,
     evccApi,
+    extensions,
+    addManagerDialog: vi.fn(),
+    serverApi: vi.fn(() => Promise.reject(new Error("nicht erwartet"))),
     locale: () => "de",
     theme: () => "light" as const,
     onEnvChange: () => () => undefined,
@@ -65,7 +147,16 @@ function fakeApi(evccApi = routedEvccApi(notLoggedIn), initialSettings: SettingV
     state[key] = value;
     for (const cb of listeners.get(key) ?? []) cb(value);
   };
-  return { api, push, listeners, evccApi, pushSettings, settingListeners };
+  return {
+    api,
+    push,
+    listeners,
+    evccApi,
+    pushSettings,
+    settingListeners,
+    addProvider,
+    extensionListeners,
+  };
 }
 
 let root: HTMLElement;
@@ -79,15 +170,6 @@ afterEach(() => render(null, root));
 
 const q = (sel: string) => root.querySelector<HTMLElement>(sel);
 
-const modeButton = (index: number, button: "power" | "smart") =>
-  q(`[data-testid="consumer-mode-${index}"] [data-testid="consumer-mode-${button}"]`);
-
-async function clickMode(index: number, button: "power" | "smart") {
-  await act(async () => {
-    modeButton(index, button)?.click();
-    await new Promise((resolve) => setTimeout(resolve, 0));
-  });
-}
 const SOCKET = {
   title: "Waschmaschine",
   chargerFeatureSwitchDevice: true,
@@ -97,13 +179,14 @@ const SOCKET = {
 };
 
 describe("ConsumersPage", () => {
-  it("zeigt Leertexte ohne Daten", async () => {
+  it("zeigt ohne Daten einen gemeinsamen Leertext und keine Abschnitte", async () => {
     const { api } = fakeApi();
     await act(() => render(<ConsumersPage api={api} />, root));
-    expect(q('[data-testid="consumers-empty-switchable"]')?.textContent).toContain(
-      "Ladepunkt mit Steckdose",
+    expect(q('[data-testid="consumers-empty"]')?.textContent).toBe(
+      "Keine Steckdosen-Ladepunkte und Verbraucher in evcc konfiguriert.",
     );
-    expect(q('[data-testid="consumers-empty-measured"]')).not.toBeNull();
+    expect(q('[data-testid="consumers-switchable"]')).toBeNull();
+    expect(q('[data-testid="consumers-measured"]')).toBeNull();
   });
 
   it("zeigt Karten nach Live-Daten und aktualisiert sie", async () => {
@@ -126,53 +209,12 @@ describe("ConsumersPage", () => {
     );
   });
 
-  it("setzt den Modus per evccApi (1-basiert)", async () => {
-    const { api, push, evccApi } = fakeApi();
-    await act(() => render(<ConsumersPage api={api} />, root));
-    await act(() => push("loadpoints", [{ title: "Carport" }, SOCKET]));
-    expect(q('[data-testid="consumer-mode-1"] [aria-pressed="true"]')).toBeNull();
-    await clickMode(1, "power");
-    expect(evccApi).toHaveBeenCalledWith("loadpoints/2/mode/now", { method: "POST" });
-  });
-
-  it.each([
-    ["now", "true", "false"],
-    ["smart", "false", "true"],
-    ["off", "false", "false"],
-    [null, "false", "false"],
-  ])("zeigt bei Modus %s die Buttons ⏻ %s und ☀ %s", async (mode, power, smart) => {
-    const { api, push } = fakeApi();
-    push("loadpoints", [{ ...SOCKET, mode }]);
-    await act(() => render(<ConsumersPage api={api} />, root));
-    expect(modeButton(0, "power")?.getAttribute("aria-pressed")).toBe(power);
-    expect(modeButton(0, "smart")?.getAttribute("aria-pressed")).toBe(smart);
-    expect(modeButton(0, "power")?.getAttribute("title")).toBe("An/Aus (Schnell)");
-    expect(modeButton(0, "smart")?.getAttribute("title")).toBe("Smart");
-  });
-
-  it.each([
-    ["off", "power", "now"],
-    ["now", "power", "off"],
-    ["smart", "smart", "off"],
-    ["off", "smart", "smart"],
-  ] as const)("schaltet bei %s per %s auf %s", async (mode, button, target) => {
-    const { api, push, evccApi } = fakeApi();
-    push("loadpoints", [{ ...SOCKET, mode }]);
-    await act(() => render(<ConsumersPage api={api} />, root));
-    await clickMode(0, button);
-    expect(evccApi).toHaveBeenCalledWith(`loadpoints/1/mode/${target}`, { method: "POST" });
-  });
-
-  it("zeigt die Modus-Buttons im Kartenkopf statt des alten Moduswählers", async () => {
+  it("zeigt die Status-Zeile ohne eigene Buttons", async () => {
     const { api, push } = fakeApi();
     push("loadpoints", [SOCKET]);
     await act(() => render(<ConsumersPage api={api} />, root));
     const card = q('[data-testid="consumer-switch-0"]');
-    expect(
-      card?.querySelector('.evcc-consumers-head [data-testid="consumer-mode-0"]'),
-    ).not.toBeNull();
-    expect(card?.querySelector(".btn-group")).toBeNull();
-    expect(card?.textContent).not.toMatch(/Schnell|Aus\b/);
+    expect(card?.querySelector("button")).toBeNull();
     expect(card?.querySelector('[data-testid="consumer-status"]')?.textContent).toBe("an");
   });
 
@@ -217,26 +259,20 @@ describe("ConsumersPage", () => {
     expect(evccApi.mock.calls.filter(([path]) => path.startsWith("config/"))).toHaveLength(1);
   });
 
-  it("zeigt eine Fehlermeldung, wenn der Modus nicht gesetzt werden kann", async () => {
-    const { api, push } = fakeApi(
-      vi.fn(() => Promise.resolve(new Response(null, { status: 500 }))),
-    );
-    await act(() => render(<ConsumersPage api={api} />, root));
-    await act(() => push("loadpoints", [SOCKET]));
-    await clickMode(0, "smart");
-    expect(q('[data-testid="consumer-error"]')?.textContent).toBe(
-      "Modus konnte nicht gesetzt werden: HTTP 500",
-    );
-  });
-
-  it("meldet sich beim Unmount ab", async () => {
-    const { api, listeners, settingListeners } = fakeApi();
+  it("meldet sich beim Unmount ab, auch bei Anbietern", async () => {
+    const { api, listeners, settingListeners, addProvider, extensionListeners } = fakeApi();
+    const provider = fakeProvider("a");
+    addProvider("a", provider);
     await act(() => render(<ConsumersPage api={api} />, root));
     expect(listeners.get("loadpoints")?.size).toBe(1);
     expect(settingListeners.size).toBe(1);
+    expect(extensionListeners.size).toBe(1);
+    expect(provider.subscribers.size).toBe(1);
     await act(() => render(null, root));
     expect(listeners.get("loadpoints")?.size).toBe(0);
     expect(settingListeners.size).toBe(0);
+    expect(extensionListeners.size).toBe(0);
+    expect(provider.subscribers.size).toBe(0);
   });
 });
 
@@ -309,7 +345,8 @@ describe("ConsumersPage: Einstellungen", () => {
   });
 
   it("sortiert bei power-desc nach Leistung und sortiert live um", async () => {
-    const { api, push } = fakeApi(undefined, { sort: "power-desc" });
+    const { api, push, addProvider } = fakeApi(undefined, { sort: "power-desc" });
+    addProvider("lp", loadpointProvider());
     push("loadpoints", SOCKETS);
     push("consumers", METERS);
     await renderPage(api);
@@ -332,7 +369,8 @@ describe("ConsumersPage: Einstellungen", () => {
   });
 
   it("sortiert bei name-desc umgekehrt alphabetisch", async () => {
-    const { api, push } = fakeApi(undefined, { sort: "name-desc" });
+    const { api, push, addProvider } = fakeApi(undefined, { sort: "name-desc" });
+    addProvider("lp", loadpointProvider());
     push("loadpoints", SOCKETS);
     push("consumers", METERS);
     await renderPage(api);
@@ -349,7 +387,8 @@ describe("ConsumersPage: Einstellungen", () => {
   });
 
   it("rendert nach onChange ohne Remount neu", async () => {
-    const { api, push, pushSettings } = fakeApi();
+    const { api, push, pushSettings, addProvider } = fakeApi();
+    addProvider("lp", loadpointProvider());
     push("loadpoints", [SOCKET]);
     push("consumers", METERS);
     await renderPage(api);
@@ -364,7 +403,7 @@ describe("ConsumersPage: Einstellungen", () => {
 });
 
 describe("ConsumersPage: Anzeige", () => {
-  it("zeigt 0 W und 0 Wh auf der Karte „Schaltbar“ als „–“ in Grau", async () => {
+  it("zeigt 0 W und 0 Wh auf der Ladepunkt-Karte als „–“ in Grau", async () => {
     const { api, push } = fakeApi();
     push("loadpoints", [{ ...SOCKET, chargePower: 0, chargedEnergy: 0 }]);
     await act(() => render(<ConsumersPage api={api} />, root));
@@ -407,5 +446,134 @@ describe("ConsumersPage: Anzeige", () => {
     expect(badge?.classList.contains("badge")).toBe(true);
     expect(power?.classList.contains("is-error")).toBe(false);
     expect(order("consumers-measured")).toEqual(["consumer-meter-b", "consumer-meter-a"]);
+  });
+});
+
+const LAMP = { ...SOCKET, title: "Lampe", chargePower: 35, mode: "now" };
+const FRIDGE = { name: "kuehl", title: "Kühlschrank", power: 120 };
+const COFFEE = { name: "kaffee", power: 1150 };
+
+/** Seite mit Lampe (Ladepunkt 1), Waschmaschine (Ladepunkt 0), Kühlschrank und kaffee (Meter) */
+async function pageWithDevices(sort = "name-asc") {
+  const fake = fakeApi(undefined, { sort });
+  fake.push("loadpoints", [SOCKET, LAMP]);
+  fake.push("consumers", [FRIDGE, COFFEE]);
+  await renderPage(fake.api);
+  return fake;
+}
+
+const inSection = (section: "consumers-switchable" | "consumers-measured", testId: string) =>
+  q(`[data-testid="${section}"] [data-testid="${testId}"]`);
+
+describe("ConsumersPage: Erweiterungspunkt consumers.cardActions", () => {
+  it("zeigt ohne Anbieter keine Buttons und alles unter „Nur Messung“", async () => {
+    await pageWithDevices();
+    expect(q('[data-testid="consumers-switchable"]')).toBeNull();
+    expect(order("consumers-measured")).toEqual([
+      "consumer-meter-kaffee",
+      "consumer-meter-kuehl",
+      "consumer-switch-1",
+      "consumer-switch-0",
+    ]);
+    expect(root.querySelector("button")).toBeNull();
+  });
+
+  it("stellt beanspruchte Karten gemischt unter „Schaltbar“ und hängt den Anbieter ein", async () => {
+    const fake = fakeApi(undefined, { sort: "power-desc" });
+    fake.push("loadpoints", [SOCKET, LAMP]);
+    fake.push("consumers", [FRIDGE, COFFEE]);
+    const provider = fakeProvider("tapo", ["Lampe", "kaffee"]);
+    fake.addProvider("tapo", provider);
+    await renderPage(fake.api);
+    expect(order("consumers-switchable")).toEqual(["consumer-meter-kaffee", "consumer-switch-1"]);
+    expect(order("consumers-measured")).toEqual(["consumer-switch-0", "consumer-meter-kuehl"]);
+    expect(inSection("consumers-switchable", "fake-tapo")).not.toBeNull();
+    expect(
+      q('[data-testid="consumer-switch-1"] .evcc-consumers-head [data-testid="fake-tapo"]'),
+    ).not.toBeNull();
+    expect(provider.mounts).toEqual(
+      expect.arrayContaining([
+        { card: { kind: "loadpoint", index: 1, title: "Lampe" }, mode: "now", locale: "de" },
+        {
+          card: { kind: "meter", usage: "consumer", name: "kaffee", title: "kaffee" },
+          mode: null,
+          locale: "de",
+        },
+      ]),
+    );
+    await act(() => fake.push("loadpoints", [SOCKET, { ...LAMP, mode: "off" }]));
+    expect(provider.updates.map((ctx) => ctx.mode)).toEqual(["off"]);
+    await act(() => fake.push("loadpoints", [SOCKET]));
+    expect(provider.destroys).toEqual(["Lampe"]);
+  });
+
+  it("wechselt nach subscribe-Meldungen ohne Neuladen den Abschnitt", async () => {
+    const fake = await pageWithDevices();
+    const provider = fakeProvider("tapo");
+    await act(() => void fake.addProvider("tapo", provider));
+    expect(q('[data-testid="consumers-switchable"]')).toBeNull();
+    provider.claimed.add("Kühlschrank");
+    await act(() => provider.notify());
+    expect(order("consumers-switchable")).toEqual(["consumer-meter-kuehl"]);
+    provider.claimed.clear();
+    await act(() => provider.notify());
+    expect(provider.destroys).toEqual(["Kühlschrank"]);
+    expect(q('[data-testid="consumers-switchable"]')).toBeNull();
+    expect(inSection("consumers-measured", "consumer-meter-kuehl")).not.toBeNull();
+  });
+
+  it("bindet zwei Anbieter für verschiedene Karten ein (z. B. Tapo und Shelly)", async () => {
+    const fake = fakeApi();
+    fake.push("loadpoints", [SOCKET, LAMP]);
+    fake.addProvider("switches-tapo", fakeProvider("tapo", ["Lampe"]));
+    fake.addProvider("switches-shelly", fakeProvider("shelly", ["Waschmaschine"]));
+    await renderPage(fake.api);
+    const lamp = q('[data-testid="consumer-switch-1"]');
+    const washer = q('[data-testid="consumer-switch-0"]');
+    expect(lamp?.querySelector('[data-testid="fake-tapo"]')).not.toBeNull();
+    expect(lamp?.querySelector('[data-testid="fake-shelly"]')).toBeNull();
+    expect(washer?.querySelector('[data-testid="fake-shelly"]')).not.toBeNull();
+    expect(washer?.querySelector('[data-testid="fake-tapo"]')).toBeNull();
+    expect(order("consumers-switchable")).toEqual(["consumer-switch-1", "consumer-switch-0"]);
+  });
+
+  it("lässt eine Karte bei Fehler in claims unter „Nur Messung“ und zeigt ihn an", async () => {
+    const fake = fakeApi();
+    fake.push("loadpoints", [LAMP]);
+    fake.addProvider("kaputt", {
+      ...fakeProvider("kaputt"),
+      claims: () => {
+        throw new Error("claims kaputt");
+      },
+    });
+    await renderPage(fake.api);
+    expect(inSection("consumers-measured", "consumer-switch-0")).not.toBeNull();
+    expect(q('[data-testid="consumer-extension-error"]')?.textContent).toBe(
+      "Erweiterung von kaputt fehlgeschlagen: claims kaputt",
+    );
+  });
+
+  it("zeigt einen Fehler in mount auf der Karte, andere Anbieter laufen weiter", async () => {
+    const fake = fakeApi();
+    fake.push("loadpoints", [SOCKET, LAMP]);
+    fake.addProvider("kaputt", {
+      ...fakeProvider("kaputt", ["Lampe"]),
+      mount: () => {
+        throw new Error("mount kaputt");
+      },
+    });
+    fake.addProvider("gut", fakeProvider("gut", ["Waschmaschine"]));
+    await renderPage(fake.api);
+    const lamp = q('[data-testid="consumer-switch-1"]');
+    expect(lamp?.querySelector('[data-testid="consumer-extension-error"]')?.textContent).toBe(
+      "Erweiterung von kaputt fehlgeschlagen: mount kaputt",
+    );
+    expect(q('[data-testid="consumer-switch-0"] [data-testid="fake-gut"]')).not.toBeNull();
+  });
+
+  it("zeigt einen späten Anbieter ohne Neuladen", async () => {
+    const fake = await pageWithDevices();
+    await act(() => void fake.addProvider("spaet", fakeProvider("spaet", ["Waschmaschine"])));
+    expect(inSection("consumers-switchable", "fake-spaet")).not.toBeNull();
   });
 });

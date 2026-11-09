@@ -26,6 +26,11 @@ export function readAddonZip(buffer: Uint8Array, limits: PackageLimits): AddonPa
       entry: manifest.entry,
     });
   }
+  if (manifest.server !== undefined && !files.has(manifest.server)) {
+    throw new AddonError("entry-missing", `${manifest.server} fehlt im Paket`, {
+      entry: manifest.server,
+    });
+  }
   return { manifest, files };
 }
 

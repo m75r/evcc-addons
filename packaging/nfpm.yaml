@@ -8,7 +8,7 @@ priority: optional
 maintainer: Matthias Gasser <matthias@gassermail.de>
 description: |
   Reverse proxy in front of evcc that extends the evcc web UI with installable
-  addons (menu entry "Addons", addon API, consumers addon).
+  addons (menu entry "Addons", addon API with browser and server parts).
 license: MIT
 
 depends:

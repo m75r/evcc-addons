@@ -1,6 +1,8 @@
-// Playwright gegen echtes evcc (Docker) hinter dem Proxy
+// Playwright gegen echtes evcc (Docker) hinter dem Proxy; Webserver und Seed über das SDK
 import { defineConfig, devices } from "@playwright/test";
+import { e2eWebServers, PROXY_URL } from "@evcc-addons/sdk/testing/playwright";
 import path from "node:path";
+import { seedZips } from "./seed.mjs";
 
 const root = path.resolve(import.meta.dirname, "..");
 
@@ -12,40 +14,27 @@ export default defineConfig({
   reporter: process.env.CI ? "line" : "list",
   outputDir: path.resolve(root, "test-results"),
   use: {
-    baseURL: "http://localhost:17080",
+    baseURL: PROXY_URL,
     locale: "de-DE",
     trace: "retain-on-failure",
   },
-  webServer: [
-    {
-      command: "docker compose -f e2e/docker-compose.yml up --force-recreate",
-      cwd: root,
-      url: "http://127.0.0.1:17070",
-      timeout: 120_000,
-      reuseExistingServer: false,
-      gracefulShutdown: { signal: "SIGINT", timeout: 15_000 },
-      stdout: "ignore",
-      stderr: "pipe",
-    },
-    {
-      command: "node e2e/start-fake-tapo.mjs",
-      cwd: root,
-      url: "http://127.0.0.1:17090/_test/state",
-      timeout: 30_000,
-      reuseExistingServer: false,
-      stdout: "ignore",
-      stderr: "pipe",
-    },
-    {
-      command: "node e2e/start-proxy.mjs",
-      cwd: root,
-      url: "http://127.0.0.1:17080/addons-api/health",
-      timeout: 60_000,
-      reuseExistingServer: false,
-      stdout: "pipe",
-      stderr: "pipe",
-    },
-  ],
+  webServer: e2eWebServers({
+    root,
+    evccConfig: "e2e/fixtures/evcc.yaml",
+    zips: seedZips(),
+    prepare: "e2e/seed.mjs",
+    extra: [
+      {
+        command: "node e2e/start-fake-tapo.mjs",
+        cwd: root,
+        url: "http://127.0.0.1:17090/_test/state",
+        timeout: 30_000,
+        reuseExistingServer: false,
+        stdout: "ignore",
+        stderr: "pipe",
+      },
+    ],
+  }),
   projects: [
     { name: "setup", testMatch: /.*\.setup\.ts/ },
     {

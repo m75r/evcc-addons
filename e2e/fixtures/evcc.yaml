@@ -9,6 +9,7 @@ site:
       - pv
     consumer:
       - kuehlschrank
+      - kaffee
     aux:
       - heizstab
 
@@ -35,6 +36,14 @@ meters:
       source: js
       script: |
         57.5
+  # Verbraucher über das Gateway von switches-tapo (Fake-Tapo 17091, Steckdose „kaffee“ aus switches-v2.json);
+  # ohne title, consumers zeigt dann den Namen „kaffee“ und die Bindung nutzt ihn
+  - name: kaffee
+    type: custom
+    power:
+      source: http
+      uri: http://host.docker.internal:17080/addons-api/ext/switches-tapo/kaffee/c0ffeec0ffeec0ffeec0ffeec0ffeec0ffeec0ffeec0ffeec0ffeec0ffeec0ff/state
+      jq: .power // 0
   - name: heizstab
     type: custom
     power:
@@ -57,7 +66,7 @@ loadpoints:
   - title: Waschmaschine
     charger: socket
     mode: off
-  # Tapo-Steckdose über das Schalt-Gateway des Proxys (Fake-Tapo, Steckdose „lampe“ aus switches.json)
+  # Tapo-Steckdose über das Gateway des Addons switches-tapo (Fake-Tapo, Steckdose „lampe“ aus switches.json)
   - title: Lampe
     charger: lampe
     mode: off
@@ -67,15 +76,15 @@ chargers:
     type: switchsocket
     enabled:
       source: http
-      uri: http://host.docker.internal:17080/addons-api/switches/lampe/e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0/state
+      uri: http://host.docker.internal:17080/addons-api/ext/switches-tapo/lampe/e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0/state
       jq: .on
     enable:
       source: http
-      uri: http://host.docker.internal:17080/addons-api/switches/lampe/e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0/set?on={{.enable}}
+      uri: http://host.docker.internal:17080/addons-api/ext/switches-tapo/lampe/e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0/set?on={{.enable}}
       method: POST
     power:
       source: http
-      uri: http://host.docker.internal:17080/addons-api/switches/lampe/e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0/state
+      uri: http://host.docker.internal:17080/addons-api/ext/switches-tapo/lampe/e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0/state
       jq: .power
     standbypower: 0
     features:

@@ -1,10 +1,11 @@
-// Ablage installierter Addons: <dataDir>/addons/<id>/… und <dataDir>/state.json
+// Ablage installierter Addons: <dataDir>/addons/<id>/…, <dataDir>/state.json und Datenordner
 import type { AddonManifest, SettingValues } from "@evcc-addons/sdk";
 import { randomBytes } from "node:crypto";
 import { mkdir, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import type { Logger } from "../logger.js";
 import { errorMessage, isRecord } from "../util.js";
+import { addonDataRoot, hasAddonData, removeAddonData } from "./addon-data.js";
 import { AddonError } from "./errors.js";
 import { isValidAddonId, parseManifest } from "./manifest.js";
 import { MANIFEST_FILE, readAddonZip, type PackageLimits } from "./package.js";
@@ -16,6 +17,10 @@ export interface InstalledAddon {
   enabled: boolean;
   /** Einstellungen, mit Defaults aufgelöst */
   settings: SettingValues;
+  /** Zeitpunkt der letzten Installation (ISO), null bei Installationen vor 2.0.0 */
+  installedAt: string | null;
+  /** Der Datenordner `addon-data/<id>` enthält Dateien */
+  hasData: boolean;
 }
 
 export interface InstallResult {
@@ -27,6 +32,7 @@ export interface InstallResult {
 interface StoredEntry {
   enabled: boolean;
   settings?: Record<string, unknown>;
+  installedAt?: string;
 }
 
 interface StoreState {
@@ -40,6 +46,8 @@ export interface StoreOptions {
   limits?: Partial<PackageLimits>;
   /** Austauschbar, um Schreibfehler im Test zu simulieren */
   writeFile?: typeof writeFile;
+  /** Uhr für `installedAt`, austauschbar für Tests */
+  now?: () => Date;
 }
 
 export class AddonStore {
@@ -65,7 +73,7 @@ export class AddonStore {
         this.opts.logger.warn("addon manifest unreadable", { id, error: errorMessage(err) });
         return null;
       });
-      if (manifest) addons.push(toInstalled(manifest, state.addons[id]));
+      if (manifest) addons.push(await this.installed(manifest, state.addons[id]));
     }
     return addons;
   }
@@ -73,7 +81,7 @@ export class AddonStore {
   async get(id: string): Promise<InstalledAddon> {
     const manifest = await this.readManifest(id);
     const state = await this.readState();
-    return toInstalled(manifest, state.addons[id]);
+    return this.installed(manifest, state.addons[id]);
   }
 
   install(buffer: Uint8Array): Promise<InstallResult> {
@@ -84,7 +92,7 @@ export class AddonStore {
     return this.serialized(async () => {
       const { manifest } = await this.get(id);
       const entry = await this.mergeEntry(id, (prev) => ({ ...prev, enabled }));
-      return toInstalled(manifest, entry);
+      return this.installed(manifest, entry);
     });
   }
 
@@ -106,15 +114,19 @@ export class AddonStore {
     return this.serialized(async () => {
       await this.get(id);
       await rm(join(this.addonsDir, id), { recursive: true, force: true });
+      await removeAddonData(this.opts.dataDir, id);
       await this.updateState((state) => delete state.addons[id]);
       this.opts.status?.clear(id);
     });
   }
 
-  /** Entfernt alle installierten Addons (CLI `--reset`) */
+  /** Entfernt alle installierten Addons samt `addon-data/` (CLI `--reset`) */
   async removeAll(): Promise<void> {
     for (const id of await this.installedIds()) await this.remove(id);
-    await this.serialized(() => this.updateState((state) => (state.addons = {})));
+    await this.serialized(async () => {
+      await rm(addonDataRoot(this.opts.dataDir), { recursive: true, force: true });
+      await this.updateState((state) => (state.addons = {}));
+    });
   }
 
   /** Verzeichnis eines installierten Addons; unbekannte ids ergeben `not-found` */
@@ -138,10 +150,11 @@ export class AddonStore {
       });
     }
     const enabled = previous?.enabled ?? true;
-    const entry = await this.mergeEntry(id, (prev) => ({ ...prev, enabled }));
+    const installedAt = (this.opts.now?.() ?? new Date()).toISOString();
+    const entry = await this.mergeEntry(id, (prev) => ({ ...prev, enabled, installedAt }));
     this.opts.status?.clear(id);
     return {
-      addon: toInstalled(pkg.manifest, entry),
+      addon: await this.installed(pkg.manifest, entry),
       previousVersion: previous?.manifest.version ?? null,
     };
   }
@@ -156,7 +169,15 @@ export class AddonStore {
       enabled: prev?.enabled ?? true,
       settings: { ...keepValidValues(defs, prev?.settings), ...input },
     }));
-    return toInstalled(manifest, entry);
+    return this.installed(manifest, entry);
+  }
+
+  private async installed(
+    manifest: AddonManifest,
+    entry: StoredEntry | undefined,
+  ): Promise<InstalledAddon> {
+    const hasData = await hasAddonData(this.opts.dataDir, manifest.id);
+    return toInstalled(manifest, entry, hasData);
   }
 
   /** Ersetzt den Eintrag einer id durch `change(bisheriger Eintrag)` und liefert ihn zurück */
@@ -267,11 +288,17 @@ export class AddonStore {
 }
 
 /** Manifest und gespeicherter Eintrag → InstalledAddon mit aufgelösten Einstellungen */
-function toInstalled(manifest: AddonManifest, entry: StoredEntry | undefined): InstalledAddon {
+function toInstalled(
+  manifest: AddonManifest,
+  entry: StoredEntry | undefined,
+  hasData: boolean,
+): InstalledAddon {
   return {
     manifest,
     enabled: entry?.enabled ?? true,
     settings: resolveSettingValues(manifest.settings ?? [], entry?.settings),
+    installedAt: typeof entry?.installedAt === "string" ? entry.installedAt : null,
+    hasData,
   };
 }
 

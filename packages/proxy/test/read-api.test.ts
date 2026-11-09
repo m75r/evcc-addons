@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { startFakeEvcc, type FakeEvcc } from "./fake-evcc.js";
+import { startFakeEvcc, type FakeEvcc } from "@evcc-addons/sdk/testing/fake-evcc";
 import { startTestProxy, type TestProxy } from "./helpers.js";
 import { addonZip } from "./zip-fixtures.js";
 
@@ -35,6 +35,9 @@ describe("GET /addons-api/addons", () => {
         version: "0.1.0",
         description: "Beispiel",
         entry: "index.js",
+        apiVersion: 1,
+        hasServer: false,
+        hasData: false,
         enabled: true,
         error: "Error: kaputt",
         settings: [],

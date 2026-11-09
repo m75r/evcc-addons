@@ -11,3 +11,8 @@ playwright-report/
 # Private Projektunterlagen, nicht veröffentlichen
 docs/
 CLAUDE.md
+
+# Beim npm pack ins SDK kopiert
+packages/sdk/runtime/
+packages/sdk/LICENSE
+packages/sdk/THIRD_PARTY_NOTICES.md

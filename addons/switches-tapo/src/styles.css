@@ -1,0 +1,83 @@
+/* Styles des Addons switches-tapo; werden einmalig als <style id="evcc-switches-tapo-style"> eingefügt */
+
+/* Button „+ Steckdose“ wie evcc Config/NewDeviceButton */
+.evcc-switches-tapo-new-btn {
+  border-radius: 1rem;
+  border: 1px solid var(--evcc-gray-50);
+  padding: 0.5rem 1rem;
+  transition: border-color var(--evcc-transition-fast, 0.1s) linear;
+  background: none;
+  color: inherit;
+  margin: 0;
+}
+
+.evcc-switches-tapo-new-btn:hover,
+.evcc-switches-tapo-new-btn:focus-visible {
+  border-color: var(--evcc-default-text);
+  color: var(--evcc-default-text);
+}
+
+.evcc-switches-tapo-new-icon,
+.evcc-switches-tapo-new-icon svg {
+  display: block;
+  width: 24px;
+  height: 24px;
+}
+
+/* YAML für evcc auf der Steckdosen-Karte: scrollt waagerecht statt umzubrechen */
+.evcc-switches-tapo-yaml {
+  white-space: pre;
+  overflow-x: auto;
+  background: var(--evcc-box-border, rgba(127, 127, 127, 0.12));
+  color: inherit;
+}
+
+/* Modus-Gruppe in den Karten von consumers, wie evcc IconSelectGroup / IconSelectItem */
+.evcc-switches-tapo-modes {
+  display: flex;
+  gap: 0.25rem;
+  border: var(--bs-border-width) solid var(--bs-border-color);
+  border-radius: 20px;
+  padding: 4px;
+}
+
+.evcc-switches-tapo-mode-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 2rem;
+  background: transparent;
+  color: var(--evcc-default-text);
+  transition:
+    color 0.2s,
+    background-color 0.2s;
+}
+
+.evcc-switches-tapo-mode-btn:hover:not(:disabled) {
+  color: var(--evcc-gray);
+}
+
+.evcc-switches-tapo-mode-btn.active,
+.evcc-switches-tapo-mode-btn.active:hover:not(:disabled) {
+  color: var(--evcc-background);
+  background: var(--evcc-default-text);
+}
+
+.evcc-switches-tapo-mode-btn:disabled {
+  opacity: 0.65;
+}
+
+.evcc-switches-tapo-mode-btn svg {
+  display: block;
+}
+
+/* Fehlermeldung unter den Zeilen einer consumers-Karte */
+.evcc-switches-tapo-error {
+  margin-top: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--bs-danger);
+}

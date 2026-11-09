@@ -1,10 +1,13 @@
 // Karte eines reinen Messverbrauchers (consumer- oder aux-Meter)
 import { Card, Row, type RowProps } from "./Card.js";
+import { useCardActions } from "./CardActions.js";
+import type { CardActionContext } from "./extension-contract.js";
 import { displayEnergyWh, displayPower, formatEnergyKWh, type Display } from "./format.js";
 import { texts, type Texts } from "./i18n.js";
 import { deviceIcon } from "./icons.js";
 import type { MeterStatus } from "./meter-status.js";
 import { meterRows, type MeterCardData, type MeterRow, type MeterRowKind } from "./model.js";
+import type { Claim } from "./useClaims.js";
 
 export interface MeterCardProps {
   card: MeterCardData;
@@ -13,6 +16,8 @@ export interface MeterCardProps {
   locale: string;
   /** Einstellung „Verbraucht anzeigen“ */
   showEnergy: boolean;
+  claim: Claim;
+  context: CardActionContext;
 }
 
 const TEST_IDS: Record<MeterRowKind, string> = {
@@ -43,10 +48,17 @@ function rowDisplay(row: MeterRow, t: Texts, locale: string): RowProps {
   return { ...base, value: text, muted };
 }
 
-export function MeterCard({ card, status, locale, showEnergy }: MeterCardProps) {
+export function MeterCard({ card, status, locale, showEnergy, claim, context }: MeterCardProps) {
   const t = texts(locale);
+  const slots = useCardActions(claim, context, t);
   return (
-    <Card icon={deviceIcon(card.icon)} title={card.title} testId={`consumer-meter-${card.name}`}>
+    <Card
+      icon={deviceIcon(card.icon)}
+      title={card.title}
+      testId={`consumer-meter-${card.name}`}
+      actions={slots.actions}
+      footer={slots.message}
+    >
       {meterRows(card, status, showEnergy).map((row) => (
         <Row key={row.kind} {...rowDisplay(row, t, locale)} />
       ))}

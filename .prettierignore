@@ -6,3 +6,6 @@ test-results/
 playwright-report/
 package-lock.json
 .claude/
+packages/sdk/runtime/
+packages/sdk/LICENSE
+packages/sdk/THIRD_PARTY_NOTICES.md

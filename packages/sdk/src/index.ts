@@ -1,7 +1,10 @@
-// Öffentliche Typen der evcc-Addon-API (apiVersion 1)
+// Öffentliche Typen der evcc-Addon-API (apiVersion 2, Version 1 wird weiter akzeptiert)
 
-/** Version der Addon-API, die dieser Loader unterstützt */
-export const ADDON_API_VERSION = 1;
+/** Aktuelle Version der Addon-API */
+export const ADDON_API_VERSION = 2;
+
+/** Versionen, die die Plattform installiert und startet */
+export const SUPPORTED_API_VERSIONS = [1, 2] as const;
 
 /** Text, entweder fest oder je Sprache, z. B. `{ de: "Hallo", en: "Hello" }` */
 export type Localized = string | Record<string, string>;
@@ -80,6 +83,48 @@ export interface AddonSettings {
   onChange(cb: (values: SettingValues) => void): () => void;
 }
 
+/** Eintrag eines Erweiterungspunkts: Wert und Addon, das ihn bereitstellt */
+export interface ExtensionEntry<T = unknown> {
+  addonId: string;
+  value: T;
+}
+
+/**
+ * Erweiterungspunkte zwischen Addons, z. B. `consumers.cardActions`.
+ * Namenskonvention `<anbieter-id>.<punkt>`; Werte sind an DOM gebunden, nicht an Preact.
+ */
+export interface AddonExtensions {
+  /** Stellt `value` unter `point` bereit, gibt die Abmeldefunktion zurück */
+  provide(point: string, value: unknown): () => void;
+  /** Alle Einträge in Reihenfolge der Registrierung (Kopie) */
+  get<T = unknown>(point: string): ExtensionEntry<T>[];
+  /** Meldet neue und abgemeldete Einträge, gibt die Abmeldefunktion zurück */
+  onChange<T = unknown>(point: string, cb: (entries: ExtensionEntry<T>[]) => void): () => void;
+}
+
+/** Kontext eines Dialogs auf der Seite „Addons“; die Funktionen dürfen weitergereicht werden */
+export interface ManagerDialogContext {
+  locale: string;
+  /** Ein evcc-Admin ist angemeldet */
+  canManage: boolean;
+  /** Rückfrage wie `window.confirm` */
+  confirm: (message: string) => boolean;
+  /** Bei 401: schließt den Dialog und zeigt das Anmeldefeld */
+  onUnauthorized: () => void;
+  close: () => void;
+}
+
+/** Dialog, den ein Icon-Button auf der Karte des Addons öffnet (links neben ⚙) */
+export interface ManagerDialogDef {
+  /** Beschriftung des Buttons (aria-label, title) */
+  label: Localized;
+  /** SVG-Markup des Buttons */
+  icon: string;
+  title: Localized;
+  /** Rendert den Inhalt in `el`, die optionale Rückgabe räumt beim Schließen auf */
+  mount(el: HTMLElement, ctx: ManagerDialogContext): void | (() => void);
+}
+
 /** API, die `activate` erhält */
 export interface AddonApi {
   id: string;
@@ -91,6 +136,12 @@ export interface AddonApi {
   settings: AddonSettings;
   /** Ruft `api/<path>` von evcc relativ zur aktuellen Seite auf */
   evccApi(path: string, init?: RequestInit): Promise<Response>;
+  /** Erweiterungspunkte zwischen Addons (apiVersion 2) */
+  extensions: AddonExtensions;
+  /** Dialog auf der Karte des Addons in der Seite „Addons“ (apiVersion 2) */
+  addManagerDialog(def: ManagerDialogDef): void;
+  /** Ruft die eigenen Server-Routen unter `addons-api/ext/<id>/<path>` auf (apiVersion 2) */
+  serverApi(path: string, init?: RequestInit): Promise<Response>;
   locale(): string;
   theme(): "light" | "dark";
   onEnvChange(cb: () => void): () => void;
@@ -104,6 +155,8 @@ export interface AddonManifest {
   description?: Localized;
   entry: string;
   apiVersion: number;
+  /** Server-Teil (nur apiVersion 2), relativer Pfad auf eine .mjs-Datei, z. B. `server.mjs` */
+  server?: string;
   /** Einstellungen, die ein Admin auf der Seite „Addons“ ändert */
   settings?: SettingDef[];
 }

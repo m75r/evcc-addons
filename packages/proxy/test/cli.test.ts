@@ -1,3 +1,4 @@
+import { strToU8 } from "fflate";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -72,6 +73,27 @@ describe("install", () => {
     await expect(run).rejects.toThrow(
       /Bitte als Eigentümer von .* ausführen, z\. B\. sudo -u evcc-addons/,
     );
+  });
+
+  it("weist bei Addons mit Server-Teil auf den Neustart hin", async () => {
+    const { config } = await setup();
+    const zip = join(config.dataDir, "..", "srv.zip");
+    const files = { "server.mjs": strToU8("export function activateServer() {}") };
+    await writeFile(zip, addonZip({ id: "srv", apiVersion: 2, server: "server.mjs" }, files));
+    const logs: string[] = [];
+    const logger = createLogger("info", { out: (l) => logs.push(l), err: (l) => logs.push(l) });
+    await runInstall(config, { reset: false, files: [zip] }, { logger });
+    expect(logs).toContain(
+      'level=info msg="server addon installed" id=srv hint="läuft nach dem nächsten Aufruf oder systemctl restart evcc-addons"',
+    );
+  });
+
+  it("nennt den Neustart nicht bei Addons ohne Server-Teil", async () => {
+    const { config, zips } = await setup();
+    const logs: string[] = [];
+    const logger = createLogger("info", { out: (l) => logs.push(l), err: (l) => logs.push(l) });
+    await runInstall(config, { reset: false, files: zips }, { logger });
+    expect(logs.join("\n")).not.toContain("server addon installed");
   });
 
   it("meldet ungültige Pakete mit Dateinamen", async () => {

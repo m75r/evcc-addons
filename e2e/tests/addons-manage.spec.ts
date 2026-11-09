@@ -19,7 +19,7 @@ test("ohne Login erscheint das Anmeldefeld, mit Passwort die Verwaltung", async 
   await expect(page.getByTestId("addons-login-error")).toHaveText("Passwort falsch");
 
   await loginViaUi(page);
-  await expect(page.getByTestId("addon-card-hello").getByTestId("addon-toggle")).toBeEnabled();
+  await expect(page.getByTestId("addon-card-menu-addon").getByTestId("addon-toggle")).toBeEnabled();
   await openMoreMenu(page);
   await expect(page.locator(".more-menu").getByText("Abmelden", { exact: true })).toBeVisible();
 });
@@ -78,9 +78,9 @@ test("Update und Neuinstallation melden die Versionen", async ({ page }) => {
   await expect(page.getByTestId("addon-card-test-addon")).toContainText("v0.2.0");
 
   reloaded = page.waitForEvent("load");
-  await uploadZip(page, "dist/addons/hello-0.1.0.zip");
+  await uploadZip(page, "e2e/.build/menu-addon-0.1.0.zip");
   await expect(page.getByTestId("addons-install-success")).toHaveText(
-    "Neu installiert: Hallo Welt 0.1.0",
+    "Neu installiert: Menü-Addon 0.1.0",
   );
   await reloaded;
 });
@@ -108,7 +108,7 @@ test("Deinstallieren entfernt das Addon aus der Liste", async ({ page }) => {
   const reloaded = page.waitForEvent("load");
   await page.getByTestId("addon-card-broken-addon").getByTestId("addon-uninstall").click();
   await reloaded;
-  await expect(page.getByTestId("addon-card-hello")).toBeVisible();
+  await expect(page.getByTestId("addon-card-menu-addon")).toBeVisible();
   await expect(page.getByTestId("addon-card-broken-addon")).toHaveCount(0);
 });
 
@@ -138,7 +138,9 @@ test("nach dem Abmelden in evcc erscheint wieder das Anmeldefeld", async ({ page
 test("Einstellungen speichern ohne Neuladen", async ({ page }) => {
   await loginViaUi(page);
   const card = page.getByTestId("addon-card-test-addon");
-  await expect(page.getByTestId("addon-card-hello").getByTestId("addon-settings")).toHaveCount(0);
+  await expect(page.getByTestId("addon-card-menu-addon").getByTestId("addon-settings")).toHaveCount(
+    0,
+  );
   await card.getByTestId("addon-settings").click();
   const modal = page.getByTestId("addon-settings-modal");
   await expect(modal).toContainText("Einstellungen Test-Addon");

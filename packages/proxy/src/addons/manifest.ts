@@ -1,6 +1,6 @@
 // Prüfung von addon.json
 import type { AddonManifest, Localized } from "@evcc-addons/sdk";
-import { ADDON_API_VERSION } from "@evcc-addons/sdk";
+import { SUPPORTED_API_VERSIONS } from "@evcc-addons/sdk";
 import { isRecord } from "../util.js";
 import { AddonError } from "./errors.js";
 import { parseSettingDefs } from "./settings.js";
@@ -24,6 +24,7 @@ export function parseManifest(raw: unknown): AddonManifest {
   if (raw.description !== undefined) {
     manifest.description = parseLocalized("description", raw.description);
   }
+  if (raw.server !== undefined) manifest.server = parseServer(raw.server, manifest.apiVersion);
   if (raw.settings !== undefined) manifest.settings = parseSettingDefs(raw.settings);
   return manifest;
 }
@@ -70,14 +71,23 @@ function parseEntry(value: unknown): string {
   return value.replace(/^\.\//, "");
 }
 
+/** Server-Teil: nur ab apiVersion 2, relativer Pfad auf eine .mjs-Datei */
+function parseServer(value: unknown, apiVersion: number): string {
+  if (apiVersion < 2) throw invalid("server", "erfordert apiVersion 2");
+  if (typeof value !== "string" || !value.endsWith(".mjs") || !isSafeRelativePath(value)) {
+    throw invalid("server", "muss ein relativer Pfad auf eine .mjs-Datei sein");
+  }
+  return value.replace(/^\.\//, "");
+}
+
 function parseApiVersion(value: unknown): number {
   if (typeof value !== "number" || !Number.isInteger(value)) {
     throw invalid("apiVersion", "muss eine ganze Zahl sein");
   }
-  if (value !== ADDON_API_VERSION) {
+  if (!(SUPPORTED_API_VERSIONS as readonly number[]).includes(value)) {
     throw new AddonError(
       "api-version-unsupported",
-      `apiVersion ${value} wird nicht unterstützt (unterstützt: ${ADDON_API_VERSION})`,
+      `apiVersion ${value} wird nicht unterstützt (unterstützt: ${SUPPORTED_API_VERSIONS.join(", ")})`,
     );
   }
   return value;

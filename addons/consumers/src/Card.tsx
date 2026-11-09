@@ -5,12 +5,14 @@ export interface CardProps {
   icon: string;
   title: string;
   testId: string;
-  /** steht rechts im Kopf, z. B. die Modus-Buttons */
+  /** steht rechts im Kopf, z. B. die Buttons eines Steckdosen-Addons */
   actions?: ComponentChildren;
+  /** steht unter den Zeilen, z. B. Fehlermeldungen */
+  footer?: ComponentChildren;
   children: ComponentChildren;
 }
 
-export function Card({ icon, title, testId, actions, children }: CardProps) {
+export function Card({ icon, title, testId, actions, footer, children }: CardProps) {
   return (
     <div class="round-box evcc-consumers-card" data-testid={testId}>
       <div class="evcc-consumers-head">
@@ -26,6 +28,7 @@ export function Card({ icon, title, testId, actions, children }: CardProps) {
       </div>
       <hr />
       {children}
+      {footer}
     </div>
   );
 }

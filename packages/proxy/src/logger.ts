@@ -9,6 +9,8 @@ export interface Logger {
   warn(msg: string, fields?: LogFields): void;
   error(msg: string, fields?: LogFields): void;
   readonly isDebug: boolean;
+  /** Logger, der `fields` jeder Zeile voranstellt, z. B. `{ addon: "x" }` */
+  child(fields: LogFields): Logger;
 }
 
 export interface LogSink {
@@ -22,15 +24,19 @@ const processSink: LogSink = {
 };
 
 export function createLogger(level: LogLevel, sink: LogSink = processSink): Logger {
-  const isDebug = level === "debug";
+  return buildLogger(level === "debug", sink, {});
+}
+
+function buildLogger(isDebug: boolean, sink: LogSink, base: LogFields): Logger {
   const write = (target: "out" | "err", lvl: string, msg: string, fields?: LogFields) =>
-    sink[target](formatLine(lvl, msg, fields));
+    sink[target](formatLine(lvl, msg, { ...base, ...fields }));
   return {
     isDebug,
     debug: (msg, fields) => isDebug && write("out", "debug", msg, fields),
     info: (msg, fields) => write("out", "info", msg, fields),
     warn: (msg, fields) => write("err", "warn", msg, fields),
     error: (msg, fields) => write("err", "error", msg, fields),
+    child: (fields) => buildLogger(isDebug, sink, { ...base, ...fields }),
   };
 }
 

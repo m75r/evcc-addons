@@ -6,7 +6,7 @@
     "rootDir": ".",
     "outDir": "../node_modules/.tsbuild/e2e"
   },
-  "include": ["*.ts", "tests", "helpers", "fixtures/addons/*/src"],
+  "include": ["*.ts", "*.d.mts", "tests", "helpers", "fixtures/addons/*/src"],
   "references": [
     {
       "path": "../packages/sdk"

@@ -1,14 +1,90 @@
 {
   "name": "@evcc-addons/sdk",
-  "version": "0.1.0",
+  "version": "2.0.0",
   "private": true,
   "type": "module",
-  "description": "Type definitions for evcc addons (plus the API version constant)",
-  "types": "src/index.ts",
+  "description": "SDK for evcc addons: types, build CLI, test helpers and the platform runtime",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/m75r/evcc-addons.git",
+    "directory": "packages/sdk"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "bin": {
+    "evcc-addon": "bin/evcc-addon.mjs"
+  },
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./src/index.ts",
-      "default": "./src/index.ts"
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./server": {
+      "source": "./src/server.ts",
+      "types": "./dist/server.d.ts",
+      "default": "./dist/server.js"
+    },
+    "./vitest": {
+      "source": "./src/vitest.ts",
+      "types": "./dist/vitest.d.ts",
+      "default": "./dist/vitest.js"
+    },
+    "./testing/harness": {
+      "source": "./src/testing/harness.ts",
+      "types": "./dist/testing/harness.d.ts",
+      "default": "./dist/testing/harness.js"
+    },
+    "./testing/fake-evcc": {
+      "source": "./src/testing/fake-evcc.ts",
+      "types": "./dist/testing/fake-evcc.d.ts",
+      "default": "./dist/testing/fake-evcc.js"
+    },
+    "./testing/server": {
+      "source": "./src/testing/server.ts",
+      "types": "./dist/testing/server.d.ts",
+      "default": "./dist/testing/server.js"
+    },
+    "./testing/playwright": {
+      "source": "./src/testing/playwright.ts",
+      "types": "./dist/testing/playwright.d.ts",
+      "default": "./dist/testing/playwright.js"
+    },
+    "./testing/compose.yml": "./testing/compose.yml"
+  },
+  "files": [
+    "dist",
+    "bin",
+    "runtime",
+    "testing",
+    "LICENSE",
+    "THIRD_PARTY_NOTICES.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "prepack": "npm run build && node scripts/prepack.mjs"
+  },
+  "dependencies": {
+    "esbuild": "^0.28.2",
+    "fflate": "^0.8.3"
+  },
+  "peerDependencies": {
+    "@playwright/test": ">=1.50",
+    "vite": ">=6",
+    "vitest": ">=3"
+  },
+  "peerDependenciesMeta": {
+    "@playwright/test": {
+      "optional": true
+    },
+    "vite": {
+      "optional": true
+    },
+    "vitest": {
+      "optional": true
     }
   }
 }

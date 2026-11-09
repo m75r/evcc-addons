@@ -14,6 +14,7 @@ export default tseslint.config(
       "test-results/**",
       "playwright-report/**",
       ".dev/**",
+      "packages/sdk/runtime/**",
     ],
   },
   js.configs.recommended,

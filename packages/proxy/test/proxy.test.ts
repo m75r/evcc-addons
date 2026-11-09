@@ -3,7 +3,12 @@ import { gunzipSync } from "node:zlib";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { loaderTag } from "../src/proxy/inject.js";
 import { VERSION } from "../src/version.js";
-import { INDEX_HTML, STATE, startFakeEvcc, type FakeEvcc } from "./fake-evcc.js";
+import {
+  INDEX_HTML,
+  STATE,
+  startFakeEvcc,
+  type FakeEvcc,
+} from "@evcc-addons/sdk/testing/fake-evcc";
 import { startTestProxy, type TestProxy } from "./helpers.js";
 import { rawRequest } from "./raw-http.js";
 

@@ -1,0 +1,8 @@
+{
+  "id": "menu-addon",
+  "name": { "de": "Menü-Addon", "en": "Menu addon" },
+  "version": "0.1.0",
+  "description": "Fixture: Eintrag im Menü „Mehr“ und eine Seite mit der PV-Leistung",
+  "apiVersion": 2,
+  "entry": "index.js"
+}

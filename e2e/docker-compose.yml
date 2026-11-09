@@ -1,9 +1,0 @@
-# evcc für die E2E-Tests; ohne Volume, damit jeder Container mit frischer DB startet
-services:
-  evcc:
-    image: ${EVCC_IMAGE:-evcc/evcc:latest}
-    ports:
-      - "17070:7070"
-    volumes:
-      - ./fixtures/evcc.yaml:/etc/evcc.yaml:ro
-    command: evcc --config /etc/evcc.yaml

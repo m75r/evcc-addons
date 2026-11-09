@@ -12,13 +12,16 @@ import type { ApiContext, Route } from "./context.js";
 const STATUS_BODY_LIMIT = 4096;
 
 export function toAddonDto(addon: InstalledAddon, status: StatusRegistry) {
-  const { id, name, version, description, entry } = addon.manifest;
+  const { id, name, version, description, entry, apiVersion, server } = addon.manifest;
   return {
     id,
     name,
     version,
     description: description ?? null,
     entry,
+    apiVersion,
+    hasServer: server !== undefined,
+    hasData: addon.hasData,
     enabled: addon.enabled,
     error: status.get(id),
     settings: addon.manifest.settings ?? [],
@@ -32,7 +35,9 @@ function health(_req: IncomingMessage, res: ServerResponse): void {
   sendJson(res, 200, { status: "ok", version: VERSION });
 }
 
+/** Gleicht vorher die Server-Teile ab, z. B. nach einer Installation per CLI */
 async function list(_req: IncomingMessage, res: ServerResponse, ctx: ApiContext): Promise<void> {
+  await ctx.serverAddons.reconcile();
   const addons = await ctx.store.list();
   sendJson(
     res,

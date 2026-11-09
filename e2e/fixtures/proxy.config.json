@@ -1,7 +1,0 @@
-{
-  "listen": { "host": "127.0.0.1", "port": 17080 },
-  "evccUrl": "http://127.0.0.1:17070",
-  "dataDir": "../.data",
-  "publicDir": "../../packages/loader/dist",
-  "logLevel": "info"
-}

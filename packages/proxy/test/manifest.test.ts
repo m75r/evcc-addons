@@ -44,8 +44,29 @@ describe("parseManifest", () => {
     expect(codeOf(manifest({ version: "1.0.0-beta.1" }))).toBeUndefined();
   });
 
-  it("lehnt apiVersion 2 ab", () => {
-    expect(codeOf(manifest({ apiVersion: 2 }))).toBe("api-version-unsupported");
+  it("akzeptiert apiVersion 1 und 2", () => {
+    expect(codeOf(manifest({ apiVersion: 1 }))).toBeUndefined();
+    expect(codeOf(manifest({ apiVersion: 2 }))).toBeUndefined();
+  });
+
+  it("lehnt apiVersion 3 ab", () => {
+    expect(codeOf(manifest({ apiVersion: 3 }))).toBe("api-version-unsupported");
+  });
+
+  it("übernimmt server bei apiVersion 2", () => {
+    const parsed = parseManifest(manifest({ apiVersion: 2, server: "./server.mjs" }));
+    expect(parsed.server).toBe("server.mjs");
+  });
+
+  it("lehnt server bei apiVersion 1 ab", () => {
+    expect(codeOf(manifest({ server: "server.mjs" }))).toBe("manifest-invalid");
+    expect(() => parseManifest(manifest({ server: "server.mjs" }))).toThrow(
+      /server erfordert apiVersion 2/,
+    );
+  });
+
+  it.each(["../server.mjs", "/server.mjs", "server.js", 3])("lehnt server %s ab", (server) => {
+    expect(codeOf(manifest({ apiVersion: 2, server }))).toBe("manifest-invalid");
   });
 
   it.each([

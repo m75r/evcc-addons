@@ -1,12 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
+  cardRef,
   meterPower,
   meterRows,
-  nextMode,
   normalizeMode,
   sortCards,
+  splitByClaim,
+  toLoadpointCards,
   toMeterCards,
-  toSwitchCards,
+  type CardItem,
 } from "../src/model.js";
 import type { SortOrder } from "../src/settings.js";
 
@@ -31,10 +33,10 @@ const loadpoints = [
   { title: "Trockner", chargerFeatureSwitchDevice: false, mode: "minpv" },
 ];
 
-describe("toSwitchCards", () => {
+describe("toLoadpointCards", () => {
   it("filtert auf SwitchDevice, behält den 0-basierten Index und sortiert", () => {
     // Deutsche Sortierung: „ä“ zählt wie „a“, daher Wärmepumpe (r) vor Waschmaschine (s)
-    expect(toSwitchCards(loadpoints, "de")).toEqual([
+    expect(toLoadpointCards(loadpoints, "de")).toEqual([
       {
         index: 1,
         title: "Wärmepumpe",
@@ -57,8 +59,8 @@ describe("toSwitchCards", () => {
   });
 
   it("verträgt fehlende Daten", () => {
-    expect(toSwitchCards(undefined, "de")).toEqual([]);
-    expect(toSwitchCards([null, { chargerFeatureSwitchDevice: true }], "de")).toEqual([
+    expect(toLoadpointCards(undefined, "de")).toEqual([]);
+    expect(toLoadpointCards([null, { chargerFeatureSwitchDevice: true }], "de")).toEqual([
       {
         index: 1,
         title: "#2",
@@ -106,6 +108,7 @@ describe("toMeterCards", () => {
     const aux = [{ name: "heizstab", power: 1500 }];
     expect(toMeterCards(consumers, aux, "de")).toEqual([
       {
+        usage: "aux",
         name: "heizstab",
         title: "heizstab",
         icon: "smartconsumer",
@@ -113,6 +116,7 @@ describe("toMeterCards", () => {
         energyKWh: undefined,
       },
       {
+        usage: "consumer",
         name: "zirkulation",
         title: "Zirkulationspumpe (Keller)",
         icon: "pump",
@@ -125,7 +129,13 @@ describe("toMeterCards", () => {
 });
 
 describe("meterRows", () => {
-  const card = { name: "dyson", title: "Dyson", icon: "airpurifier", power: 24 };
+  const card = {
+    usage: "consumer" as const,
+    name: "dyson",
+    title: "Dyson",
+    icon: "airpurifier",
+    power: 24,
+  };
 
   it("zeigt ohne Gerätestatus nur Leistung und vorhandene Energie", () => {
     expect(meterRows(card)).toEqual([{ kind: "power", value: 24, error: undefined }]);
@@ -164,7 +174,7 @@ describe("meterRows", () => {
 });
 
 describe("meterPower", () => {
-  const card = { name: "a", title: "A", icon: "generic" };
+  const card = { usage: "consumer" as const, name: "a", title: "A", icon: "generic" };
 
   it("nimmt den Live-Wert, sonst den Gerätestatus", () => {
     expect(meterPower({ ...card, power: 24 }, { power: { value: 5 } })).toBe(24);
@@ -176,21 +186,6 @@ describe("meterPower", () => {
     expect(meterPower({ ...card, power: 0 }, { power: { value: 0, error: "timeout" } })).toBe(
       undefined,
     );
-  });
-});
-
-describe("nextMode", () => {
-  it.each([
-    ["now", "power", "off"],
-    ["now", "smart", "smart"],
-    ["smart", "power", "now"],
-    ["smart", "smart", "off"],
-    ["off", "power", "now"],
-    ["off", "smart", "smart"],
-    [null, "power", "now"],
-    [null, "smart", "smart"],
-  ] as const)("%s + %s → %s", (current, button, expected) => {
-    expect(nextMode(current, button)).toBe(expected);
   });
 });
 
@@ -218,5 +213,42 @@ describe("sortCards", () => {
   it("ändert die Eingabe nicht", () => {
     order("name-desc");
     expect(cards[0].title).toBe("Berta");
+  });
+});
+
+describe("splitByClaim", () => {
+  const lps = toLoadpointCards(loadpoints, "de");
+  const meters = toMeterCards([{ name: "kuehl", title: "Kühlschrank", power: 120 }], [], "de");
+  const split = (claimed: string[], sort: SortOrder = "name-asc") =>
+    splitByClaim(lps, meters, {
+      isClaimed: (item) => claimed.includes(item.title),
+      sort,
+      locale: "de",
+      powerOf: (item) => item.card.power,
+    });
+  const titles = (items: CardItem[]) => items.map((item) => item.title);
+
+  it("trennt beanspruchte und übrige Karten, gemischt nach Art", () => {
+    const result = split(["Waschmaschine", "Kühlschrank"]);
+    expect(titles(result.switchable)).toEqual(["Kühlschrank", "Waschmaschine"]);
+    expect(titles(result.measured)).toEqual(["Wärmepumpe"]);
+    expect(result.switchable.map((item) => item.kind)).toEqual(["meter", "loadpoint"]);
+  });
+
+  it("sortiert beide Abschnitte nach der Einstellung", () => {
+    const result = split([], "power-desc");
+    expect(result.switchable).toEqual([]);
+    expect(titles(result.measured)).toEqual(["Kühlschrank", "Wärmepumpe", "Waschmaschine"]);
+  });
+
+  it("liefert die CardRef je Art", () => {
+    const [kuehl, , wasch] = split([]).measured;
+    expect(cardRef(kuehl)).toEqual({
+      kind: "meter",
+      usage: "consumer",
+      name: "kuehl",
+      title: "Kühlschrank",
+    });
+    expect(cardRef(wasch)).toEqual({ kind: "loadpoint", index: 2, title: "Waschmaschine" });
   });
 });

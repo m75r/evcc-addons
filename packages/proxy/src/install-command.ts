@@ -47,9 +47,18 @@ async function installFile(store: AddonStore, file: string, logger: Logger): Pro
       previous: previousVersion ?? undefined,
       file,
     });
+    if (addon.manifest.server !== undefined) logServerHint(addon.manifest.id, logger);
   } catch (err) {
     throw new Error(`${file}: ${errorMessage(err)}`, { cause: err });
   }
+}
+
+/** Der laufende Proxy bemerkt die Installation erst beim nächsten Abgleich */
+function logServerHint(id: string, logger: Logger): void {
+  logger.info("server addon installed", {
+    id,
+    hint: "läuft nach dem nächsten Aufruf oder systemctl restart evcc-addons",
+  });
 }
 
 /**

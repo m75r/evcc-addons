@@ -75,14 +75,6 @@ html.evcc-addons-page-route #app > .app {
   margin-top: -0.25rem;
 }
 
-/* YAML für evcc auf der Steckdosen-Karte: scrollt waagerecht statt umzubrechen */
-.evcc-addons-yaml {
-  white-space: pre;
-  overflow-x: auto;
-  background: var(--evcc-box-border, rgba(127, 127, 127, 0.12));
-  color: inherit;
-}
-
 /* Rückfall-Tab ohne evcc-Vorbild */
 .evcc-addons-fallback-tab {
   flex: 1 1 0;

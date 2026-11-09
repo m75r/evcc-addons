@@ -1,33 +1,26 @@
-// Vitest-Projekte: Proxy (Node), Loader und Addons (happy-dom)
-import { readFileSync } from "node:fs";
-import type { Plugin } from "vite";
+// Vitest-Projekte: SDK und Proxy (Node), Loader und Addons (happy-dom), Server-Teile der Addons (Node)
+import { defaultClientConditions, defaultServerConditions } from "vite";
 import { defineConfig } from "vitest/config";
+import { cssAsText } from "./packages/sdk/src/vitest.js";
 
 const jsx = { jsx: { runtime: "automatic", importSource: "preact" } } as const;
-const CSS_PREFIX = "\0css-text:";
-const CSS_SUFFIX = ".js";
-
-/** Importiert CSS-Dateien als Zeichenkette, wie esbuild mit `loader: { ".css": "text" }` */
-function cssAsText(): Plugin {
-  return {
-    name: "css-as-text",
-    enforce: "pre",
-    async resolveId(source, importer) {
-      if (!source.endsWith(".css")) return null;
-      const resolved = await this.resolve(source, importer, { skipSelf: true });
-      return resolved ? CSS_PREFIX + resolved.id + CSS_SUFFIX : null;
-    },
-    load(id) {
-      if (!id.startsWith(CSS_PREFIX)) return null;
-      const file = id.slice(CSS_PREFIX.length, -CSS_SUFFIX.length);
-      return `export default ${JSON.stringify(readFileSync(file, "utf8"))};`;
-    },
-  };
-}
+/** Pakete des Monorepos aus dem Quelltext (Exportbedingung `source`), ohne vorher zu bauen */
+const resolve = { conditions: ["source", ...defaultClientConditions] };
+const ssr = { resolve: { conditions: ["source", ...defaultServerConditions] } };
 
 export default defineConfig({
+  resolve,
+  ssr,
   test: {
     projects: [
+      {
+        test: {
+          name: "sdk",
+          root: "packages/sdk",
+          environment: "node",
+          include: ["test/**/*.test.ts"],
+        },
+      },
       {
         test: {
           name: "proxy",
@@ -53,6 +46,15 @@ export default defineConfig({
           name: "addons",
           environment: "happy-dom",
           include: ["addons/*/test/**/*.test.{ts,tsx}"],
+          exclude: ["addons/*/test/server/**"],
+          passWithNoTests: true,
+        },
+      },
+      {
+        test: {
+          name: "addons-server",
+          environment: "node",
+          include: ["addons/*/test/server/**/*.test.ts"],
           passWithNoTests: true,
         },
       },

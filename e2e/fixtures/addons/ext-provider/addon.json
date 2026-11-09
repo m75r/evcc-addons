@@ -1,0 +1,8 @@
+{
+  "id": "ext-provider",
+  "name": "Erweiterungs-Anbieter",
+  "version": "0.1.0",
+  "description": "Fixture: stellt fixture.badge bereit und hat einen Dialog",
+  "apiVersion": 2,
+  "entry": "index.js"
+}

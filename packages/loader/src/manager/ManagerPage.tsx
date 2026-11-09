@@ -1,12 +1,12 @@
-// Seite „Addons“ (#/addons): Sitzung, Installation, Liste der Addons und Steckdosen
+// Seite „Addons“ (#/addons): Sitzung, Installation und Liste der Addons
 import { useCallback, useEffect, useState } from "preact/hooks";
 import type { AddonInfo, ManagerClient, Session, SessionReason } from "../addons-client.js";
 import { t, type MessageKey } from "../i18n.js";
 import { AddonCard, type AddonActions } from "./AddonCard.js";
+import type { ManagerDialogRegistry } from "./dialogs.js";
 import { InstallForm } from "./InstallForm.js";
 import { LoginForm } from "./LoginForm.js";
 import { NewButton } from "./NewButton.js";
-import { SwitchSection } from "./SwitchSection.js";
 
 export interface ManagerPageProps {
   locale: string;
@@ -20,6 +20,8 @@ export interface ManagerPageProps {
   onSettingsSaved: (addon: AddonInfo) => void;
   /** Laufende Version von evcc-addons, null wenn unbekannt */
   version: string | null;
+  /** Dialoge der Addons (api.addManagerDialog) */
+  dialogs: ManagerDialogRegistry;
 }
 
 type Loadable<T> =
@@ -117,13 +119,7 @@ export function ManagerPage(props: ManagerPageProps) {
         canManage={canManage}
         reason={reason}
         actions={actions}
-      />
-      <SwitchSection
-        locale={locale}
-        client={client}
-        canManage={canManage}
-        confirm={actions.confirm}
-        onUnauthorized={actions.onUnauthorized}
+        dialogs={props.dialogs}
       />
     </div>
   );
@@ -169,9 +165,10 @@ interface AddonListProps {
   canManage: boolean;
   reason: SessionReason | null;
   actions: AddonActions;
+  dialogs: ManagerDialogRegistry;
 }
 
-function AddonList({ list, locale, canManage, reason, actions }: AddonListProps) {
+function AddonList({ list, locale, canManage, reason, actions, dialogs }: AddonListProps) {
   if (list.kind === "loading") return <p class="text-muted">{t("manager.loading", locale)}</p>;
   if (list.kind === "error") {
     return (
@@ -198,6 +195,7 @@ function AddonList({ list, locale, canManage, reason, actions }: AddonListProps)
           canManage={canManage}
           reason={reason}
           actions={actions}
+          dialogs={dialogs.list(addon.id)}
         />
       ))}
     </section>

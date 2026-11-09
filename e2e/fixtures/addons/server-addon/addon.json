@@ -1,0 +1,20 @@
+{
+  "id": "server-addon",
+  "name": "Server-Addon",
+  "version": "0.1.0",
+  "description": "Fixture mit Server-Teil für die E2E-Tests",
+  "apiVersion": 2,
+  "entry": "index.js",
+  "settings": [
+    {
+      "key": "greeting",
+      "type": "select",
+      "label": { "de": "Begrüßung", "en": "Greeting" },
+      "default": "hallo",
+      "options": [
+        { "value": "hallo", "label": "Hallo" },
+        { "value": "servus", "label": "Servus" }
+      ]
+    }
+  ]
+}

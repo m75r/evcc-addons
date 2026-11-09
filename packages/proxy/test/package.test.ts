@@ -84,6 +84,14 @@ describe("readAddonZip", () => {
     );
   });
 
+  it("meldet entry-missing, wenn die Datei aus server fehlt", () => {
+    const zip = addonZip({ apiVersion: 2, server: "server.mjs" });
+    expect(codeOf(zip)).toBe("entry-missing");
+    expect(() => readAddonZip(zip, LIMITS)).toThrow("server.mjs fehlt im Paket");
+    const complete = addonZip({ apiVersion: 2, server: "server.mjs" }, { "server.mjs": js });
+    expect(readAddonZip(complete, LIMITS).manifest.server).toBe("server.mjs");
+  });
+
   it("ignoriert Verzeichniseinträge", () => {
     const pkg = readAddonZip(addonZip({}, { "foo/": new Uint8Array(0) }), LIMITS);
     expect([...pkg.files.keys()].sort()).toEqual(["addon.json", "index.js"]);

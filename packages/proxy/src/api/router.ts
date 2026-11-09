@@ -1,9 +1,10 @@
 // Routing für /addons-api/* und Abbildung von Fehlern auf HTTP-Status
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { AddonError } from "../addons/errors.js";
+import { ServerAddonError } from "../addons/server-error.js";
 import { sendError } from "../http/json.js";
-import { redactPath } from "../switches/redact.js";
-import { errorMessage } from "../util.js";
+import { redactPath } from "../http/redact.js";
+import { errorMessage, safeDecode } from "../util.js";
 import type { ApiContext, Route } from "./context.js";
 
 export type ApiRouter = (req: IncomingMessage, res: ServerResponse, path: string) => Promise<void>;
@@ -28,7 +29,7 @@ function findRoute(routes: Route[], method: string, path: string) {
     const result = route.pattern.exec(path);
     if (!result) continue;
     pathMatched = true;
-    if (route.method !== method) continue;
+    if (route.method !== "*" && route.method !== method) continue;
     const params = result.slice(1).map(safeDecode);
     return { route, params };
   }
@@ -53,15 +54,6 @@ function lingerAfterResponse(req: IncomingMessage, res: ServerResponse): void {
   });
 }
 
-/** Ungültige Kodierung bleibt roh und führt später zu `not-found` */
-function safeDecode(param: string): string {
-  try {
-    return decodeURIComponent(param);
-  } catch {
-    return param;
-  }
-}
-
 export function handleApiError(
   req: IncomingMessage,
   res: ServerResponse,
@@ -76,7 +68,7 @@ export function handleApiError(
     res.destroy();
     return;
   }
-  if (!(err instanceof AddonError)) {
+  if (!(err instanceof AddonError) && !(err instanceof ServerAddonError)) {
     ctx.logger.error("api request failed", { path: redactPath(req.url), error: errorMessage(err) });
     return sendError(res, 500, "internal", `Interner Fehler: ${errorMessage(err)}`);
   }

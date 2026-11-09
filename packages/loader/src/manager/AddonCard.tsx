@@ -4,6 +4,8 @@ import { useState } from "preact/hooks";
 import type { AddonInfo, SessionReason } from "../addons-client.js";
 import { localize, t } from "../i18n.js";
 import { ADJUST_ICON } from "../icons.js";
+import { AddonDialog } from "./AddonDialog.js";
+import type { ManagerDialogEntry } from "./dialogs.js";
 import { SettingsModal } from "./SettingsModal.js";
 import { useAction } from "./useAction.js";
 
@@ -24,6 +26,8 @@ export interface AddonCardProps {
   canManage: boolean;
   reason: SessionReason | null;
   actions: AddonActions;
+  /** Dialoge aus api.addManagerDialog, nur bei aktivem Addon sichtbar */
+  dialogs: ManagerDialogEntry[];
 }
 
 /** Aktuelle Werte und Modal; Speichern ohne Neuladen, Fehler behandelt das Modal */
@@ -43,9 +47,10 @@ export function AddonCard(props: AddonCardProps) {
   const { addon, locale, canManage, actions } = props;
   const { busy, error, run } = useAction(actions, locale);
   const settings = useSettingsModal(addon, actions);
+  const [openDialog, setOpenDialog] = useState<number | null>(null);
   const name = localize(addon.name, locale);
   const uninstall = () => {
-    if (actions.confirm(t("manager.uninstall.confirm", locale, { name }))) {
+    if (actions.confirm(uninstallMessage(addon, name, locale))) {
       void run(() => actions.uninstall(addon.id));
     }
   };
@@ -55,6 +60,8 @@ export function AddonCard(props: AddonCardProps) {
         {...props}
         busy={busy}
         onToggle={(enabled) => void run(() => actions.setEnabled(addon.id, enabled))}
+        openDialog={openDialog}
+        onOpenDialog={setOpenDialog}
         onOpenSettings={() => settings.setOpen(true)}
       />
       <CardMessages addon={addon} locale={locale} actionError={error} />
@@ -80,17 +87,38 @@ export function AddonCard(props: AddonCardProps) {
           onUnauthorized={actions.onUnauthorized}
         />
       )}
+      {openDialog !== null && props.dialogs[openDialog] && (
+        <AddonDialog
+          addonId={addon.id}
+          index={openDialog}
+          entry={props.dialogs[openDialog]}
+          locale={locale}
+          canManage={canManage}
+          confirm={actions.confirm}
+          onUnauthorized={actions.onUnauthorized}
+          onClose={() => setOpenDialog(null)}
+        />
+      )}
     </div>
   );
+}
+
+/** Rückfrage beim Deinstallieren, mit Hinweis auf gespeicherte Daten */
+function uninstallMessage(addon: AddonInfo, name: string, locale: string): string {
+  const question = t("manager.uninstall.confirm", locale, { name });
+  return addon.hasData ? `${question} ${t("manager.uninstall.confirmData", locale)}` : question;
 }
 
 interface CardHeaderProps extends AddonCardProps {
   busy: boolean;
   onToggle: (enabled: boolean) => void;
+  openDialog: number | null;
+  onOpenDialog: (index: number) => void;
   onOpenSettings: () => void;
 }
 
-function CardHeader({ addon, locale, canManage, busy, onToggle, onOpenSettings }: CardHeaderProps) {
+function CardHeader(props: CardHeaderProps) {
+  const { addon, locale, canManage, busy, onToggle, onOpenSettings } = props;
   return (
     <div class="d-flex align-items-start justify-content-between gap-3">
       <div class="flex-grow-1 min-w-0">
@@ -100,6 +128,7 @@ function CardHeader({ addon, locale, canManage, busy, onToggle, onOpenSettings }
         )}
       </div>
       <span class="text-muted small text-nowrap pt-1">v{addon.version}</span>
+      {addon.enabled && <DialogButtons {...props} />}
       {addon.settings.length > 0 && <SettingsButton locale={locale} onClick={onOpenSettings} />}
       <div class="form-check form-switch m-0 pt-1">
         <input
@@ -114,6 +143,30 @@ function CardHeader({ addon, locale, canManage, busy, onToggle, onOpenSettings }
         />
       </div>
     </div>
+  );
+}
+
+/** Ein Icon-Button je Dialog des Addons, links neben ⚙ */
+function DialogButtons({ dialogs, locale, openDialog, onOpenDialog }: CardHeaderProps) {
+  return (
+    <>
+      {dialogs.map((entry, index) => {
+        const label = localize(entry.def.label, locale);
+        return (
+          <button
+            key={index}
+            type="button"
+            class="btn btn-sm btn-outline-secondary border-0 p-2 evcc-gray evcc-addons-settings-btn"
+            data-testid={`addon-dialog-${index}`}
+            aria-label={label}
+            aria-expanded={openDialog === index}
+            title={label}
+            onClick={() => onOpenDialog(index)}
+            dangerouslySetInnerHTML={{ __html: entry.def.icon }}
+          />
+        );
+      })}
+    </>
   );
 }
 

@@ -1,13 +1,14 @@
 import { render } from "preact";
 import { act } from "preact/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { SettingValues } from "@evcc-addons/sdk";
+import type { ManagerDialogContext, ManagerDialogDef, SettingValues } from "@evcc-addons/sdk";
 import {
   ApiError,
   type AddonInfo,
   type ManagerClient,
   type Session,
 } from "../src/addons-client.js";
+import { ManagerDialogRegistry } from "../src/manager/dialogs.js";
 import { ManagerPage } from "../src/manager/ManagerPage.js";
 
 const ADDON: AddonInfo = {
@@ -16,6 +17,9 @@ const ADDON: AddonInfo = {
   version: "0.1.0",
   description: "Beispiel",
   entry: "index.js",
+  apiVersion: 1,
+  hasServer: false,
+  hasData: false,
   enabled: true,
   error: null,
   settings: [],
@@ -60,18 +64,16 @@ function fakeClient(session: Session, overrides: Partial<ManagerClient> = {}): M
     ),
     uninstallAddon: vi.fn(() => Promise.resolve()),
     login: vi.fn(() => Promise.resolve()),
-    listSwitches: vi.fn(() => Promise.resolve([])),
-    createSwitch: vi.fn(() => Promise.reject(new Error("nicht erwartet"))),
-    updateSwitch: vi.fn(() => Promise.reject(new Error("nicht erwartet"))),
-    deleteSwitch: vi.fn(() => Promise.resolve()),
-    renewSwitchToken: vi.fn(() => Promise.resolve("t")),
-    listLoadpointTitles: vi.fn(() => Promise.resolve([])),
-    listLoadpointHosts: vi.fn(() => Promise.resolve({})),
     ...overrides,
   };
 }
 
-async function mount(client: ManagerClient, version: string | null = null) {
+async function mount(
+  client: ManagerClient,
+  version: string | null = null,
+  confirm: (message: string) => boolean = () => true,
+  dialogs = new ManagerDialogRegistry(),
+) {
   const reload = vi.fn();
   const onSettingsSaved = vi.fn();
   await act(async () => {
@@ -82,9 +84,10 @@ async function mount(client: ManagerClient, version: string | null = null) {
         client={client}
         whenLoaded={Promise.resolve()}
         reload={reload}
-        confirm={() => true}
+        confirm={confirm}
         onSettingsSaved={onSettingsSaved}
         version={version}
+        dialogs={dialogs}
       />,
       root,
     );
@@ -234,6 +237,21 @@ describe("ManagerPage", () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
     expect(q("addon-action-error")?.textContent).toBe("Aktion fehlgeschlagen: Platte voll");
+  });
+
+  it.each([
+    [false, "Hallo Welt wirklich deinstallieren?"],
+    [true, "Hallo Welt wirklich deinstallieren? Gespeicherte Daten des Addons werden gelöscht."],
+  ])("fragt vor dem Deinstallieren nach (hasData %s)", async (hasData, message) => {
+    const client = fakeClient(
+      { canManage: true, reason: null },
+      { listAddons: vi.fn(() => Promise.resolve([{ ...ADDON, hasData }])) },
+    );
+    const confirm = vi.fn(() => false);
+    await mount(client, null, confirm);
+    await act(() => q("addon-uninstall")?.click());
+    expect(confirm).toHaveBeenCalledWith(message);
+    expect(client.uninstallAddon).not.toHaveBeenCalled();
   });
 
   it("zeigt die Version neben dem Titel, nur wenn sie bekannt ist", async () => {
@@ -391,5 +409,86 @@ describe("ManagerPage: Einstellungen", () => {
     expect(document.activeElement).toBe(q("addon-settings-modal"));
     await act(() => q("addon-settings-close")?.click());
     expect(document.body.classList.contains("modal-open")).toBe(false);
+  });
+});
+
+describe("ManagerPage: Dialoge der Addons", () => {
+  function registry(mount: ManagerDialogDef["mount"], onError = vi.fn()) {
+    const dialogs = new ManagerDialogRegistry();
+    const icon = '<svg data-testid="dialog-icon"></svg>';
+    dialogs.add(
+      "hello",
+      { label: "Steckdosen", title: { de: "Dialog", en: "Dialog" }, icon, mount },
+      onError,
+    );
+    return dialogs;
+  }
+
+  async function open(dialogs: ManagerDialogRegistry, session: Session) {
+    await mount(fakeClient(session), null, () => true, dialogs);
+    await act(() => q("addon-dialog-0")?.click());
+  }
+
+  it("zeigt den Button nur bei registriertem Dialog und aktivem Addon", async () => {
+    await mount(fakeClient({ canManage: true, reason: null }));
+    expect(q("addon-dialog-0")).toBeNull();
+    render(null, root);
+    await mount(fakeClient({ canManage: true, reason: null }), null, () => true, registry(vi.fn()));
+    const button = q("addon-dialog-0");
+    expect(button?.getAttribute("aria-label")).toBe("Steckdosen");
+    expect(button?.querySelector('[data-testid="dialog-icon"]')).not.toBeNull();
+    render(null, root);
+    const disabled = fakeClient(
+      { canManage: true, reason: null },
+      { listAddons: vi.fn(() => Promise.resolve([{ ...ADDON, enabled: false }])) },
+    );
+    await mount(disabled, null, () => true, registry(vi.fn()));
+    expect(q("addon-dialog-0")).toBeNull();
+  });
+
+  it("öffnet das Modal mit Titel und übergibt canManage an mount", async () => {
+    const mountDialog = vi.fn((el: HTMLElement, ctx: ManagerDialogContext) => {
+      el.innerHTML = `<p data-testid="inhalt">canManage=${String(ctx.canManage)}</p>`;
+    });
+    await open(registry(mountDialog), { canManage: false, reason: "login-required" });
+    expect(q("addon-dialog-modal")?.querySelector(".modal-title")?.textContent).toBe("Dialog");
+    expect(q("addon-dialog-modal")?.querySelector(".modal-lg")).not.toBeNull();
+    expect(q("inhalt")?.textContent).toBe("canManage=false");
+    expect(mountDialog.mock.calls[0][1].locale).toBe("de");
+  });
+
+  it("ruft beim Schließen mit ✕ das Aufräumen auf", async () => {
+    const cleanup = vi.fn();
+    await open(
+      registry(() => cleanup),
+      { canManage: true, reason: null },
+    );
+    await act(() => q("addon-dialog-close")?.click());
+    expect(cleanup).toHaveBeenCalledOnce();
+    expect(q("addon-dialog-modal")).toBeNull();
+  });
+
+  it("schließt bei onUnauthorized und zeigt das Anmeldefeld", async () => {
+    let ctx: ManagerDialogContext | undefined;
+    await open(
+      registry((_el, context) => void (ctx = context)),
+      { canManage: true, reason: null },
+    );
+    expect(q("addons-login")).toBeNull();
+    await act(() => ctx?.onUnauthorized());
+    expect(q("addon-dialog-modal")).toBeNull();
+    expect(q("addons-login")).not.toBeNull();
+  });
+
+  it("zeigt einen Fehler in mount im Dialog und meldet ihn an onError", async () => {
+    const onError = vi.fn();
+    const failing = () => {
+      throw new Error("kaputt");
+    };
+    await open(registry(failing, onError), { canManage: true, reason: null });
+    expect(q("addon-dialog-error")?.textContent).toBe(
+      "⚠ Der Dialog konnte nicht angezeigt werden: Error: kaputt",
+    );
+    expect(onError).toHaveBeenCalledWith(new Error("kaputt"));
   });
 });

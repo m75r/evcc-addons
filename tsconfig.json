@@ -17,6 +17,9 @@
       "path": "addons/consumers"
     },
     {
+      "path": "addons/switches-tapo"
+    },
+    {
       "path": "e2e"
     },
     {

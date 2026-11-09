@@ -2,7 +2,7 @@
 import { build } from "esbuild";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { legalBanner } from "../../scripts/legal.mjs";
+import { legalBanner } from "../sdk/bin/legal.mjs";
 
 const root = resolve(import.meta.dirname, "../..");
 const pkg = JSON.parse(await readFile(resolve(root, "package.json"), "utf8"));
@@ -15,13 +15,12 @@ try {
     target: "node22",
     format: "esm",
     bundle: true,
+    // SDK aus dem Quelltext, ohne vorher packages/sdk/dist zu bauen
+    conditions: ["source"],
     sourcemap: false,
     legalComments: "eof",
     banner: {
-      js: legalBanner("evcc-addons server", [
-        "fflate (MIT)",
-        "a port of insomniacslk/tapo KLAP (MIT)",
-      ]),
+      js: legalBanner("evcc-addons server", ["fflate (MIT)"]),
     },
     define: { __VERSION__: JSON.stringify(pkg.version) },
     logLevel: "warning",

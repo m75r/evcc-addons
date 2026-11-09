@@ -2,8 +2,9 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
-    "rootDir": "src",
+    "types": ["node"],
+    "rootDir": ".",
     "outDir": "../../node_modules/.tsbuild/sdk"
   },
-  "include": ["src"]
+  "include": ["src", "test"]
 }

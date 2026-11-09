@@ -7,7 +7,7 @@ import {
   startFakeEvcc,
   type AuthMode,
   type FakeEvcc,
-} from "./fake-evcc.js";
+} from "@evcc-addons/sdk/testing/fake-evcc";
 
 let evcc: FakeEvcc;
 

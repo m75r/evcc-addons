@@ -1,4 +1,4 @@
-import { readFile, readdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { beforeEach, describe, expect, it } from "vitest";
 import { AddonError } from "../src/addons/errors.js";
@@ -7,6 +7,9 @@ import { AddonStore } from "../src/addons/store.js";
 import { silentLogger } from "../src/logger.js";
 import { tempDir } from "./helpers.js";
 import { addonZip } from "./zip-fixtures.js";
+
+/** Zeitpunkt der Installation, hier ohne festen Wert */
+const ANY_TIME: unknown = expect.any(String);
 
 let dataDir: string;
 let status: StatusRegistry;
@@ -65,6 +68,39 @@ describe("AddonStore", () => {
     expect(await readdir(join(dataDir, "addons"))).toEqual(["hello"]);
   });
 
+  it("löscht beim Deinstallieren addon-data/<id>, beim Update nicht", async () => {
+    await store.install(addonZip());
+    await mkdir(join(dataDir, "addon-data/hello"), { recursive: true });
+    await writeFile(join(dataDir, "addon-data/hello/x.json"), "{}");
+    const updated = await store.install(addonZip({ version: "0.2.0" }));
+    expect(updated.addon.hasData).toBe(true);
+    expect(await readdir(join(dataDir, "addon-data/hello"))).toEqual(["x.json"]);
+    await store.remove("hello");
+    expect(await readdir(join(dataDir, "addon-data"))).toEqual([]);
+  });
+
+  it("löscht mit removeAll den ganzen Ordner addon-data", async () => {
+    await store.install(addonZip());
+    await mkdir(join(dataDir, "addon-data/hello"), { recursive: true });
+    await mkdir(join(dataDir, "addon-data/orphan"), { recursive: true });
+    await store.removeAll();
+    await expect(stat(join(dataDir, "addon-data"))).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
+  it("setzt installedAt bei jeder Installation neu", async () => {
+    const times = ["2026-11-09T10:00:00.000Z", "2026-11-09T10:00:00.001Z"];
+    const clocked = new AddonStore({
+      dataDir,
+      logger: silentLogger(),
+      now: () => new Date(times.shift() as string),
+    });
+    const first = await clocked.install(addonZip());
+    const second = await clocked.install(addonZip());
+    expect(first.addon.installedAt).toBe("2026-11-09T10:00:00.000Z");
+    expect(second.addon.installedAt).toBe("2026-11-09T10:00:00.001Z");
+    expect((await clocked.get("hello")).installedAt).toBe("2026-11-09T10:00:00.001Z");
+  });
+
   it("meldet unbekannte ids als not-found", async () => {
     await expect(store.get("unknown")).rejects.toMatchObject({ code: "not-found" });
     await expect(store.setEnabled("unknown", true)).rejects.toBeInstanceOf(AddonError);
@@ -104,9 +140,17 @@ describe("AddonStore: Einstellungen", () => {
     await store.install(addonZip({ settings: SETTINGS }));
     const saved = await store.setSettings("hello", { sort: "b" });
     expect(saved.settings).toEqual({ showPv: true, sort: "b" });
-    expect(await storedEntry()).toEqual({ enabled: true, settings: { sort: "b" } });
+    expect(await storedEntry()).toEqual({
+      enabled: true,
+      installedAt: ANY_TIME,
+      settings: { sort: "b" },
+    });
     await store.setSettings("hello", { showPv: false });
-    expect(await storedEntry()).toEqual({ enabled: true, settings: { sort: "b", showPv: false } });
+    expect(await storedEntry()).toEqual({
+      enabled: true,
+      installedAt: ANY_TIME,
+      settings: { sort: "b", showPv: false },
+    });
   });
 
   it("lehnt ungültige Werte mit settings-invalid ab", async () => {
@@ -130,7 +174,11 @@ describe("AddonStore: Einstellungen", () => {
     await store.setSettings("hello", { showPv: false });
     const toggled = await store.setEnabled("hello", false);
     expect(toggled.settings).toEqual({ showPv: false, sort: "a" });
-    expect(await storedEntry()).toEqual({ enabled: false, settings: { showPv: false } });
+    expect(await storedEntry()).toEqual({
+      enabled: false,
+      installedAt: ANY_TIME,
+      settings: { showPv: false },
+    });
   });
 
   it("behält sie beim Update und verwirft beim Lesen unbekannte Schlüssel", async () => {
@@ -159,6 +207,7 @@ describe("AddonStore: Einstellungen", () => {
     ]);
     expect(await storedEntry()).toEqual({
       enabled: false,
+      installedAt: ANY_TIME,
       settings: { showPv: false, sort: "b" },
     });
   });

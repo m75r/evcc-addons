@@ -2,22 +2,23 @@
 import http, { type IncomingMessage, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
 import { AddonError } from "./addons/errors.js";
+import { migrateLegacySwitches } from "./addons/legacy-migration.js";
+import { ServerAddonHost } from "./addons/server-host.js";
 import { StatusRegistry } from "./addons/status.js";
 import { AddonStore } from "./addons/store.js";
 import type { ApiContext } from "./api/context.js";
+import { extRoutes } from "./api/ext-routes.js";
 import { readRoutes } from "./api/read-handlers.js";
 import { writeRoutes } from "./api/write-handlers.js";
 import { createApiRouter, type ApiRouter } from "./api/router.js";
 import type { ProxyConfig } from "./config.js";
 import { sendError } from "./http/json.js";
+import { redactPath } from "./http/redact.js";
 import type { Logger } from "./logger.js";
 import { forwardRequest } from "./proxy/forward.js";
 import { injectLoader, isIndexRequest, loaderTag } from "./proxy/inject.js";
 import { UpgradeTracker, forwardUpgrade } from "./proxy/websocket.js";
 import { serveFile } from "./static/files.js";
-import { switchRoutes } from "./switches/api.js";
-import { SwitchManager } from "./switches/manager.js";
-import { redactPath } from "./switches/redact.js";
 import { errorMessage } from "./util.js";
 import { VERSION } from "./version.js";
 
@@ -25,14 +26,13 @@ export interface ProxyDeps {
   logger: Logger;
   status?: StatusRegistry;
   store?: AddonStore;
-  switches?: SwitchManager;
 }
 
 export interface ProxyServer {
   server: http.Server;
   store: AddonStore;
   status: StatusRegistry;
-  switches: SwitchManager;
+  serverAddons: ServerAddonHost;
   listen(): Promise<AddressInfo>;
   stop(): Promise<void>;
 }
@@ -50,7 +50,7 @@ export function createProxyServer(config: ProxyConfig, deps: ProxyDeps): ProxySe
     logger: deps.logger,
     target,
     api,
-    router: createApiRouter([...readRoutes, ...writeRoutes, ...switchRoutes], api),
+    router: createApiRouter([...readRoutes, ...writeRoutes, ...extRoutes], api),
   };
   const server = http.createServer((req, res) => {
     logRequest(req, res, deps.logger);
@@ -65,9 +65,9 @@ export function createProxyServer(config: ProxyConfig, deps: ProxyDeps): ProxySe
     server,
     store: api.store,
     status: api.status,
-    switches: api.switches,
-    listen: () => listen(server, config, api.switches),
-    stop: () => stop(server, tracker, api.switches),
+    serverAddons: api.serverAddons,
+    listen: () => listen(server, config, api),
+    stop: () => stop(server, tracker, api),
   };
 }
 
@@ -84,10 +84,14 @@ function createApiContext(config: ProxyConfig, deps: ProxyDeps): ApiContext {
   const limits = { maxBytes: config.maxUploadBytes };
   const store =
     deps.store ?? new AddonStore({ dataDir: config.dataDir, logger: deps.logger, status, limits });
-  const switches =
-    deps.switches ??
-    new SwitchManager({ dataDir: config.dataDir, evccUrl: config.evccUrl, logger: deps.logger });
-  return { config, store, status, logger: deps.logger, switches };
+  const serverAddons = new ServerAddonHost({
+    store,
+    status,
+    logger: deps.logger,
+    dataDir: config.dataDir,
+    evccUrl: config.evccUrl,
+  });
+  return { config, store, status, logger: deps.logger, serverAddons };
 }
 
 async function handleRequest(req: IncomingMessage, res: ServerResponse, ctx: RequestContext) {
@@ -153,17 +157,14 @@ function logRequest(req: IncomingMessage, res: ServerResponse, logger: Logger): 
   );
 }
 
-/** Lädt zuerst die Steckdosen; ein ungültiges switches.json verhindert den Start */
+/** Übernimmt einmalig Daten aus 1.x, startet die Server-Addons, dann den HTTP-Server */
 async function listen(
   server: http.Server,
   config: ProxyConfig,
-  switches: SwitchManager,
+  api: ApiContext,
 ): Promise<AddressInfo> {
-  try {
-    await switches.start();
-  } catch (err) {
-    throw new Error(`Steckdosen nicht geladen: ${errorMessage(err)}`, { cause: err });
-  }
+  await migrateLegacySwitches(config.dataDir, api.logger);
+  await api.serverAddons.startAll();
   return new Promise((resolvePromise, reject) => {
     server.once("error", reject);
     server.listen(config.listen.port, config.listen.host, () => {
@@ -173,12 +174,8 @@ async function listen(
   });
 }
 
-function stop(
-  server: http.Server,
-  tracker: UpgradeTracker,
-  switches: SwitchManager,
-): Promise<void> {
-  switches.stop();
+async function stop(server: http.Server, tracker: UpgradeTracker, api: ApiContext): Promise<void> {
+  await api.serverAddons.stopAll();
   tracker.destroyAll();
   if (!server.listening) return Promise.resolve();
   return new Promise((resolvePromise, reject) => {

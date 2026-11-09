@@ -31,6 +31,7 @@ async function install(req: IncomingMessage, res: ServerResponse, ctx: ApiContex
     );
     const { id, version } = addon.manifest;
     ctx.logger.info("addon installed", { id, version, previous: previousVersion ?? undefined });
+    await ctx.serverAddons.sync(id);
     sendJson(res, 201, { addon: toAddonDto(addon, ctx.status), previousVersion });
   } catch (err) {
     if (err instanceof AddonError) {
@@ -48,6 +49,7 @@ async function toggle(req: IncomingMessage, res: ServerResponse, ctx: ApiContext
   }
   const addon = await ctx.store.setEnabled(id, body.enabled);
   ctx.logger.info("addon toggled", { id, enabled: body.enabled });
+  await ctx.serverAddons.sync(id);
   sendJson(res, 200, toAddonDto(addon, ctx.status));
 }
 
@@ -64,6 +66,7 @@ async function saveSettings(
   }
   const addon = await ctx.store.setSettings(id, body.values);
   ctx.logger.info("addon settings saved", { id, keys: Object.keys(body.values).join(",") });
+  ctx.serverAddons.settingsChanged(id, addon.settings);
   sendJson(res, 200, toAddonDto(addon, ctx.status));
 }
 
@@ -74,6 +77,8 @@ async function uninstall(
   [id]: string[],
 ) {
   await requireAdmin(req, ctx.config.evccUrl);
+  // Erst stoppen, damit der Server-Teil nicht mehr in seinen Datenordner schreibt
+  await ctx.serverAddons.stop(id);
   await ctx.store.remove(id);
   ctx.logger.info("addon removed", { id });
   res.writeHead(204).end();

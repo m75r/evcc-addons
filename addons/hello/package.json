@@ -5,7 +5,7 @@
   "type": "module",
   "description": "Example addon: menu entry and a page with live PV power",
   "scripts": {
-    "build": "node ../../scripts/build-addon.mjs ."
+    "build": "evcc-addon build . --out ../../dist/addons"
   },
   "devDependencies": {
     "@evcc-addons/sdk": "*"

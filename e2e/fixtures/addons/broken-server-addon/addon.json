@@ -1,0 +1,7 @@
+{
+  "id": "broken-server-addon",
+  "name": "Kaputter Server-Teil",
+  "version": "0.1.0",
+  "apiVersion": 2,
+  "entry": "index.js"
+}

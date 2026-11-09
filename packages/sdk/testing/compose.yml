@@ -1,0 +1,12 @@
+# evcc für E2E-Tests von evcc-addons und Addon-Repos; ohne Volume, jeder Start mit frischer DB.
+# EVCC_CONFIG: absoluter Pfad zur evcc.yaml, EVCC_IMAGE: Image (Standard evcc/evcc:latest).
+# evcc erreicht den Proxy auf dem Host über host.docker.internal (Docker Desktop). Kein host-gateway:
+# Unter Docker Desktop für macOS zeigt es auf die VM-Bridge statt auf den Host.
+services:
+  evcc:
+    image: ${EVCC_IMAGE:-evcc/evcc:latest}
+    ports:
+      - "17070:7070"
+    volumes:
+      - ${EVCC_CONFIG:?EVCC_CONFIG fehlt}:/etc/evcc.yaml:ro
+    command: evcc --config /etc/evcc.yaml

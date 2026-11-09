@@ -29,7 +29,7 @@ test.describe("Desktop (1280 px)", () => {
     await expect(page).not.toHaveTitle(/Test-Addon/);
   });
 
-  test("Menüeinträge öffnen Unterseite und Hello-Seite", async ({ page }) => {
+  test("Menüeinträge öffnen Unterseite und die Seite des Menü-Addons", async ({ page }) => {
     await openEvcc(page);
     await openMoreMenu(page);
     await page.getByTestId("addon-menu-test-addon-0").click();
@@ -37,9 +37,9 @@ test.describe("Desktop (1280 px)", () => {
     await expect(page.getByTestId("test-addon-detail")).toBeVisible();
 
     await openMoreMenu(page);
-    await page.locator(".more-menu").getByText("Hallo", { exact: true }).click();
-    await expect(page).toHaveURL(/#\/addons\/hello$/);
-    await expect(page.getByTestId("hello-pv")).toHaveText("PV-Leistung: 4321 W");
+    await page.locator(".more-menu").getByText("Menü-Test", { exact: true }).click();
+    await expect(page).toHaveURL(/#\/addons\/menu-addon$/);
+    await expect(page.getByTestId("menu-addon-pv")).toHaveText("PV-Leistung: 4321 W");
   });
 
   test("#/addons listet die Addons und zeigt Startfehler", async ({ page }) => {

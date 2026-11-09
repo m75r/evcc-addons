@@ -11,6 +11,8 @@ export interface ModalProps {
   closeLabel: string;
   /** Escape, ✕ und Klick auf den Hintergrund */
   onClose: () => void;
+  /** Breiterer Dialog (Bootstrap `modal-lg`) */
+  size?: "lg";
   children: ComponentChildren;
 }
 
@@ -39,7 +41,10 @@ export function Modal(props: ModalProps) {
         onKeyDown={(e) => e.key === "Escape" && props.onClose()}
         onClick={(e) => e.target === e.currentTarget && props.onClose()}
       >
-        <div class="modal-dialog modal-dialog-centered" role="document">
+        <div
+          class={`modal-dialog modal-dialog-centered${props.size ? ` modal-${props.size}` : ""}`}
+          role="document"
+        >
           <div class="modal-content">
             <div class="modal-header">
               <h5 class="modal-title" id={props.titleId}>
