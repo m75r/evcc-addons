@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { buildConfig, type ProxyConfig } from "../src/config.js";
 import { createLogger } from "../src/logger.js";
-import { createProxyServer, type ProxyServer } from "../src/server.js";
+import { createProxyServer, type ProxyDeps, type ProxyServer } from "../src/server.js";
 
 export interface TestProxy {
   url: string;
@@ -21,6 +21,7 @@ export async function tempDir(prefix = "evcc-addons-test-"): Promise<string> {
 export async function startTestProxy(
   evccUrl: string,
   overrides: Partial<ProxyConfig> = {},
+  deps: Omit<ProxyDeps, "logger"> = {},
 ): Promise<TestProxy> {
   const dir = await tempDir();
   const config: ProxyConfig = {
@@ -30,7 +31,7 @@ export async function startTestProxy(
   };
   const logs: string[] = [];
   const logger = createLogger("debug", { out: (l) => logs.push(l), err: (l) => logs.push(l) });
-  const proxy = createProxyServer(config, { logger });
+  const proxy = createProxyServer(config, { logger, ...deps });
   const address = await proxy.listen();
   return { url: `http://127.0.0.1:${address.port}`, port: address.port, proxy, logs, config };
 }

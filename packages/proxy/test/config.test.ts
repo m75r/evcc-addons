@@ -21,7 +21,20 @@ describe("loadConfig", () => {
       publicDir: defaultPublicDir(),
       maxUploadBytes: 10485760,
       logLevel: "info",
+      catalogUrl: "https://api.github.com/repos/m75r/evcc-addons/contents/addons?ref=main",
     });
+  });
+
+  it("übernimmt eine eigene catalogUrl mit Query unverändert", async () => {
+    const catalogUrl = "https://api.github.com/repos/me/fork/contents/addons?ref=dev";
+    const config = await loadConfig(await writeConfig({ catalogUrl }));
+    expect(config.catalogUrl).toBe(catalogUrl);
+  });
+
+  it.each(["ftp://pi", "kein-url", 42])("lehnt catalogUrl %s ab", async (catalogUrl) => {
+    const error = await loadConfig(await writeConfig({ catalogUrl })).catch((err: unknown) => err);
+    expect(error).toBeInstanceOf(ConfigError);
+    expect((error as Error).message).toMatch(/^Ungültiger Wert für catalogUrl: /);
   });
 
   it("löst relative Pfade gegen das Verzeichnis der Datei auf", async () => {

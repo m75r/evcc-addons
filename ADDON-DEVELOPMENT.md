@@ -386,6 +386,8 @@ export default defineConfig({
 
 - `zips` sind vor jedem Start installiert. `resetAddons({ root, zips })` setzt den Stand in einem Test zurück (löscht auch `addon-data/`).
 - `prepare`: Node-Skript, das vor dem Proxy läuft (z. B. Fixtures bauen). `extra`: weitere Webserver, z. B. Fake-Geräte; sie starten vor dem Proxy.
+- `catalogUrl`: Listing-URL des Katalogs für den Test-Proxy, z. B. ein eigener Fake-Server in `extra`. Standard ist eine unerreichbare Adresse, damit E2E-Tests nie GitHub abfragen; das Modal „Addon hinzufügen“ zeigt dann einen Katalogfehler, der Upload funktioniert.
+- `uploadZip(page, file)` öffnet ab SDK 2.1.0 über „+ Neu“ das Modal „Addon hinzufügen“, blendet mit dem Upload-Icon (`catalog-upload`) „Aus Datei installieren“ ein und lädt die Datei hoch. `installViaUi` nutzt `uploadZip` und wartet auf das Neuladen. Mit SDK 2.0.0 stand das Formular noch direkt auf der Seite.
 - Im Setup-Projekt `setAdminPassword(request)` aufrufen, damit `login(page)` mit `ADMIN_PASSWORD` funktioniert.
 - evcc erreicht den Proxy aus dem Container unter `http://host.docker.internal:17080` (Docker Desktop). Unter Linux ohne Docker Desktop braucht der Container dafür einen Eintrag `host.docker.internal:host-gateway`.
 
@@ -409,6 +411,49 @@ Installieren lässt sich die ZIP auf der Seite „Addons“ oder per CLI:
 ```sh
 sudo -u evcc-addons node /opt/evcc-addons/server.mjs install --config /etc/evcc-addons/config.json my-addon-1.0.0.zip
 ```
+
+## Addon in den Katalog aufnehmen
+
+Das Modal „Addon hinzufügen“ (Seite „Addons“ → „+ Neu“) zeigt den Katalog aus dem Verzeichnis [`addons/`](addons/) dieses Repos. Je Addon gibt es dort eine Datei `addons/<id>.yaml`:
+
+```yaml
+id: my-addon
+name:
+  de: Mein Addon
+  en: My addon
+description:
+  de: Was das Addon tut.
+  en: What the addon does.
+homepage: https://github.com/<owner>/evcc-addon-my-addon
+version: 1.0.0
+apiVersion: 2
+url: https://github.com/<owner>/evcc-addon-my-addon/releases/download/{version}/my-addon-{version}.zip
+sha256: "<64 Hex-Zeichen>"
+```
+
+| Feld          | Inhalt                                                                                      |
+| ------------- | ------------------------------------------------------------------------------------------- |
+| `id`          | id des Addons, gleich dem Dateinamen ohne `.yaml` und gleich `id` in `addon.json`           |
+| `name`        | Name, Text oder `{ de, en, … }` wie in `addon.json`                                         |
+| `description` | Beschreibung, Text oder `{ de, en, … }`                                                     |
+| `homepage`    | Repository oder Website des Addons (`https://`)                                             |
+| `version`     | angebotene Version `x.y.z[-pre]`, gleich `version` in der ZIP                               |
+| `apiVersion`  | `apiVersion` aus `addon.json`; neuere Werte zeigt eine ältere Plattform als inkompatibel an |
+| `url`         | Download der ZIP (`https://`), `{version}` wird durch `version` ersetzt                     |
+| `sha256`      | Prüfsumme der ZIP, 64 Hex-Zeichen (in Anführungszeichen, damit YAML sie als Text liest)     |
+
+Der Proxy lädt die ZIP selbst herunter und installiert sie nur, wenn die Prüfsumme stimmt und `id` und `version` der `addon.json` mit dem Eintrag übereinstimmen.
+
+Prüfsumme berechnen, lokal oder vom Release-Asset:
+
+```sh
+shasum -a 256 dist/my-addon-1.0.0.zip
+curl -sL https://github.com/<owner>/evcc-addon-my-addon/releases/download/1.0.0/my-addon-1.0.0.zip | shasum -a 256
+```
+
+- **Aufnahme:** Pull Request an [m75r/evcc-addons](https://github.com/m75r/evcc-addons) mit der neuen Datei. Der Test `catalog-repo.test.ts` prüft alle Einträge.
+- **Update:** Nach einem neuen Release nur `version` und `sha256` ändern. Der Katalog auf `main` ist nach spätestens 10 Minuten im Modal sichtbar, ohne Release der Plattform.
+- Assets eines Releases nie ersetzen. Sonst stimmt die Prüfsumme nicht mehr und die Installation wird mit `checksum-mismatch` abgelehnt.
 
 ## Vertrauensmodell
 

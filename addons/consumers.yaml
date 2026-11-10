@@ -1,0 +1,12 @@
+id: consumers
+name:
+  de: Verbraucher
+  en: Consumers
+description:
+  de: Zeigt Steckdosen-Ladepunkte und Verbraucher aus evcc live an. Schalter kommen von Steckdosen-Addons.
+  en: Shows smart-plug loadpoints and consumers from evcc live. Buttons come from smart-plug addons.
+homepage: https://github.com/m75r/evcc-addon-consumers
+version: 2.0.0
+apiVersion: 2
+url: https://github.com/m75r/evcc-addon-consumers/releases/download/{version}/consumers-{version}.zip
+sha256: "5c69559980ddb649da61df17670df355858913c84a945c5fe4c58797c01fca66"

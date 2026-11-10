@@ -75,6 +75,23 @@ html.evcc-addons-page-route #app > .app {
   margin-top: -0.25rem;
 }
 
+/* Icon-Button im Modal-Kopf (z. B. Upload ein-/ausblenden); aktiv ohne Bootstrap-Füllung von .btn.active */
+.evcc-addons-icon-btn {
+  line-height: 0;
+}
+
+.evcc-addons-icon-btn[aria-pressed="true"] {
+  color: var(--evcc-default-text);
+}
+
+/* Eintrag im Katalog des Modals „Addon hinzufügen“ */
+.evcc-addons-catalog-entry {
+  border: 1px solid var(--evcc-gray-50);
+  border-radius: 1rem;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
 /* Rückfall-Tab ohne evcc-Vorbild */
 .evcc-addons-fallback-tab {
   flex: 1 1 0;

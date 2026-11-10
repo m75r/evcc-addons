@@ -13,6 +13,8 @@ export interface ProxyConfig {
   publicDir: string;
   maxUploadBytes: number;
   logLevel: LogLevel;
+  /** Listing des Katalogs (GitHub-Contents-API auf das Verzeichnis addons/) */
+  catalogUrl: string;
 }
 
 export class ConfigError extends Error {
@@ -30,6 +32,7 @@ export const DEFAULT_CONFIG: Omit<ProxyConfig, "publicDir"> = {
   dataDir: "/var/lib/evcc-addons",
   maxUploadBytes: 10 * 1024 * 1024,
   logLevel: "info",
+  catalogUrl: "https://api.github.com/repos/m75r/evcc-addons/contents/addons?ref=main",
 };
 
 /** Liest die Konfigurationsdatei, ergänzt Defaults und prüft alle Werte */
@@ -66,7 +69,7 @@ export function buildConfig(raw: Record<string, unknown>, baseDir: string): Prox
       host: stringField("listen.host", listen.host, DEFAULT_CONFIG.listen.host),
       port: portField(listen.port ?? DEFAULT_CONFIG.listen.port),
     },
-    evccUrl: urlField(raw.evccUrl ?? DEFAULT_CONFIG.evccUrl),
+    evccUrl: urlField("evccUrl", raw.evccUrl ?? DEFAULT_CONFIG.evccUrl),
     dataDir: resolve(baseDir, stringField("dataDir", raw.dataDir, DEFAULT_CONFIG.dataDir)),
     publicDir: resolve(baseDir, stringField("publicDir", raw.publicDir, defaultPublicDir())),
     maxUploadBytes: positiveInt(
@@ -74,6 +77,7 @@ export function buildConfig(raw: Record<string, unknown>, baseDir: string): Prox
       raw.maxUploadBytes ?? DEFAULT_CONFIG.maxUploadBytes,
     ),
     logLevel: logLevelField(raw.logLevel ?? DEFAULT_CONFIG.logLevel),
+    catalogUrl: urlField("catalogUrl", raw.catalogUrl ?? DEFAULT_CONFIG.catalogUrl),
   };
   return config;
 }
@@ -95,7 +99,7 @@ function portField(value: unknown): number {
   return value;
 }
 
-function urlField(value: unknown): string {
+function urlField(field: string, value: unknown): string {
   const text = typeof value === "string" ? value : "";
   let url: URL | undefined;
   try {
@@ -105,7 +109,7 @@ function urlField(value: unknown): string {
   }
   if (!url || (url.protocol !== "http:" && url.protocol !== "https:")) {
     throw new ConfigError(
-      `Ungültiger Wert für evccUrl: ${JSON.stringify(value)} (erwartet: http-URL)`,
+      `Ungültiger Wert für ${field}: ${JSON.stringify(value)} (erwartet: http-URL)`,
     );
   }
   return text.replace(/\/+$/, "");

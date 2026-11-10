@@ -36,7 +36,7 @@ function borderMatchesGray(locator: Locator): Promise<boolean> {
   });
 }
 
-test("„+ Neu“ rechts neben dem Titel blendet das Installieren statt des Subtexts ein", async ({
+test("„+ Neu“ öffnet das Modal, ⇪ blendet den Upload ein und wieder aus, Untertitel bleibt", async ({
   page,
 }) => {
   await loginViaUi(page);
@@ -60,10 +60,19 @@ test("„+ Neu“ rechts neben dem Titel blendet das Installieren statt des Subt
   await expect.poll(() => borderMatchesGray(button)).toBe(true);
 
   await button.click();
-  await expect(install).toBeVisible();
-  await expect(subtitle).toHaveCount(0);
-  await button.click();
+  const modal = page.getByTestId("catalog-modal");
+  await expect(modal).toBeVisible();
+  await expect(subtitle).toBeVisible();
   await expect(install).toHaveCount(0);
+  const toggle = modal.getByTestId("catalog-upload");
+  await expect(toggle).toHaveAttribute("aria-pressed", "false");
+  await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-pressed", "true");
+  await expect(modal.getByTestId("addons-install")).toBeVisible();
+  await toggle.click();
+  await expect(install).toHaveCount(0);
+  await modal.getByTestId("catalog-close").click();
+  await expect(modal).toHaveCount(0);
   await expect(subtitle).toBeVisible();
 });
 

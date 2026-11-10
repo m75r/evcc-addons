@@ -22,6 +22,10 @@ Browser ──HTTP :80──► evcc-addons (Node ≥ 22)
 Browser ──HTTP :7070─► evcc direkt (ohne Addons)
 
 evcc ──HTTP──► /addons-api/ext/switches-tapo/<id>/<token>/… ──► Addon switches-tapo ──KLAP──► Tapo-Steckdose
+
+evcc-addons ──HTTPS──► GitHub (nur auf Anforderung eines Admins)
+                       ├─ api.github.com, raw.githubusercontent.com   Katalog addons/*.yaml
+                       └─ github.com/…/releases/download/…            ZIP der Katalogeinträge
 ```
 
 ## Installation auf dem Raspberry Pi
@@ -67,6 +71,14 @@ Danach läuft der Dienst `evcc-addons` und evcc ist mit Addons unter `http://<pi
 
 Optional: `maxUploadBytes` (Standard 10485760) und `logLevel: "debug"` (loggt jede Anfrage). Relative Pfade gelten relativ zur Konfigurationsdatei. Die Datei ist ein Conffile, Updates überschreiben eigene Änderungen nicht.
 
+`catalogUrl` legt fest, woher der Katalog im Modal „Addon hinzufügen“ kommt. Standard ist das Verzeichnis [`addons/`](addons/) dieses Repos auf `main`, abgefragt über die GitHub-Contents-API:
+
+```
+https://api.github.com/repos/m75r/evcc-addons/contents/addons?ref=main
+```
+
+Für einen eigenen Katalog die URL auf einen Fork oder einen anderen Branch setzen, z. B. `https://api.github.com/repos/<owner>/<repo>/contents/addons?ref=<branch>`. Der Proxy hält den Katalog 10 Minuten im Speicher.
+
 **Port 80 belegt?** `listen.port` z. B. auf `7080` setzen und den Dienst neu starten:
 
 ```sh
@@ -77,9 +89,11 @@ sudo systemctl restart evcc-addons
 
 Das Paket enthält keine Addons. Jedes Addon hat ein eigenes Repository mit Releases, dort liegt die ZIP `<id>-<version>.zip` (siehe [Addons](#addons)).
 
-Variante A, im Browser: ZIP herunterladen und unter „Mehr“ → „Addons“ → „+ Neu“ hochladen.
+Variante A, im Browser aus dem Katalog: „Mehr“ → „Addons“ → „+ Neu“ öffnet „Addon hinzufügen“, dort beim gewünschten Addon „Installieren“ drücken. Der Proxy lädt die ZIP selbst von GitHub und prüft sie.
 
-Variante B, direkt auf dem Pi:
+Variante B, im Browser aus einer Datei: ZIP herunterladen, in „Addon hinzufügen“ oben rechts auf das Upload-Icon klicken und die Datei hochladen. Das geht auch ohne Internetzugang des Pi.
+
+Variante C, direkt auf dem Pi:
 
 ```sh
 sudo -u evcc-addons node /opt/evcc-addons/server.mjs install --config /etc/evcc-addons/config.json consumers-2.0.0.zip
@@ -114,26 +128,41 @@ Addons erscheinen nur, wenn evcc über den Proxy aufgerufen wird:
 - **evcc-App:** Die App findet evcc per mDNS unter `:7070`. In der App lässt sich die Adresse gegebenenfalls manuell auf `http://<pi>/` setzen.
 - **Direktaufruf `http://<pi>:7070/`:** zeigt evcc ohne Addons. Das ist gewollt, denn so bleibt evcc auch ohne Proxy nutzbar.
 
+Der Katalog im Modal „Addon hinzufügen“ braucht Internetzugang des Pi. Ohne ihn zeigt das Modal einen Fehler, die Installation aus einer ZIP-Datei funktioniert weiter.
+
 ## Sicherheit
 
 - Addons laufen mit vollen Rechten im evcc-Fenster und können alles, was die evcc-Oberfläche kann. Nur vertrauenswürdige Addons installieren.
 - Addons mit Server-Teil (z. B. „Tapo-Steckdosen“) laufen zusätzlich im Proxy mit den Rechten des Dienst-Users `evcc-addons`.
 - Installieren, Umschalten, Einstellungen ändern und Deinstallieren erfordern den evcc-Admin-Login. Geprüft wird serverseitig über `api/auth/status` von evcc.
 - Ist die Authentifizierung in evcc deaktiviert, ist auch die Addon-Verwaltung offen.
+- Der Proxy greift nur auf Anforderung eines Admins ins Internet zu: `api.github.com` (Liste des Katalogs), `raw.githubusercontent.com` (Katalogeinträge) und die Release-Downloads der Katalogeinträge. Die Downloads leiten auf `*.githubusercontent.com` weiter; das ist für Allow-Lists in Firewalls wichtig.
+- Der Proxy lädt nur URLs aus dem Katalog, nie eine URL, die der Browser mitschickt. Jede ZIP wird vor der Installation per sha256 gegen den Katalogeintrag geprüft.
+- Ohne Internetzugang bleibt die Installation aus einer ZIP-Datei.
 
 ## Addons verwalten
 
 Die Seite „Addons“ (Menü „Mehr“ → „Addons“, `#/addons`) listet alle installierten Addons mit Version, Beschreibung, Aktiv-Zustand und eventuellen Startfehlern. Neben dem Titel steht in Grau die laufende Version von evcc-addons (z. B. „Addons v1.0.0“). Lesen ist ohne Anmeldung möglich, Ändern nur mit dem Admin-Login von evcc.
 
 - **Anmelden:** Ohne Login zeigt die Seite das Feld „Zum Verwalten anmelden“. Das Passwort ist das evcc-Admin-Passwort. Die Anmeldung gilt danach auch in evcc selbst (Menü „Mehr“ zeigt „Abmelden“), und „Abmelden“ in evcc beendet auch die Verwaltung. Der Proxy speichert kein Passwort, er fragt für jede Änderung `api/auth/status` bei evcc ab.
-- **Installieren:** „+ Neu“ rechts neben dem Titel blendet statt des Einleitungstexts das Formular „Addon installieren“ ein (erneuter Klick blendet es wieder aus). ZIP-Datei auswählen und „Installieren“ drücken. Neu installierte Addons sind sofort aktiv, die Seite lädt dazu neu.
-- **Aktualisieren:** Eine neuere ZIP desselben Addons hochladen. Die Seite meldet „Aktualisiert von <alt> auf <neu>“, der Aktiv-Zustand bleibt erhalten. Dieselbe Version erneut hochzuladen ist erlaubt („Neu installiert“).
+- **Installieren:** „+ Neu“ rechts neben dem Titel öffnet das Modal „Addon hinzufügen“ mit dem Katalog (siehe [Addons](#addons)). Jeder Eintrag zeigt Name, Version und Beschreibung:
+  - „Installieren“: noch nicht installiert
+  - „Installiert: v<alt>“ und „Aktualisieren“: der Katalog bietet eine neuere Version
+  - „✓ Installiert“ und „Neu installieren“: dieselbe Version ist installiert
+  - „Installiert: v<x>“ ohne Button: installiert ist eine neuere Version als im Katalog
+  - „Benötigt eine neuere Version von evcc-addons“: das Addon braucht eine neuere `apiVersion`, zuerst die Plattform aktualisieren
+
+  Während einer Installation sind alle Buttons gesperrt und das Modal bleibt offen. Danach erscheint die Meldung am Eintrag, die Seite lädt nach 1,5 s neu und das Addon ist aktiv.
+
+  Aus einer Datei: Das Upload-Icon oben rechts im Modal (links neben ✕) blendet „Aus Datei installieren“ ein; erneuter Klick blendet es aus. ZIP-Datei auswählen und „Installieren“ drücken.
+
+- **Aktualisieren:** „Aktualisieren“ im Katalog oder eine neuere ZIP desselben Addons hochladen. Die Seite meldet „Aktualisiert von <alt> auf <neu>“, Aktiv-Zustand und Einstellungen bleiben erhalten. Dieselbe Version erneut zu installieren ist erlaubt („Neu installiert“). Ein Downgrade geht nur per Upload, nicht über den Katalog.
 - **Deaktivieren/Aktivieren:** Schalter auf der Karte. Nach dem Neuladen ist das Addon (nicht) mehr geladen.
 - **Einstellungen:** Addons mit Einstellungen haben auf der Karte einen Button mit Schieberegler-Icon. Er öffnet das Modal „Einstellungen <Name>“. „Speichern“ übernimmt die Werte ohne Neuladen. Die Werte gelten für alle Geräte, ändern dürfen sie nur Admins. Ohne Login zeigt das Modal die Werte schreibgeschützt.
 - **Dialoge:** Manche Addons bringen auf ihrer Karte einen eigenen Icon-Button links neben den Einstellungen mit, z. B. „Tapo-Steckdosen“. Er öffnet einen Dialog des Addons.
 - **Deinstallieren:** Button „Deinstallieren“ auf der Karte, mit Rückfrage. Hat das Addon Daten gespeichert (`addon-data/<id>/`), weist die Rückfrage darauf hin; sie werden mit gelöscht.
 
-Ungültige Pakete werden mit einer Meldung abgelehnt: unzulässige Pfade (Zip-Slip), mehr als 10 MB oder 500 Dateien, fehlendes oder ungültiges `addon.json`, fehlende Einstiegsdatei oder eine nicht unterstützte `apiVersion`.
+Ungültige Pakete werden mit einer Meldung abgelehnt: unzulässige Pfade (Zip-Slip), mehr als 10 MB oder 500 Dateien, fehlendes oder ungültiges `addon.json`, fehlende Einstiegsdatei oder eine nicht unterstützte `apiVersion`. Bei der Installation aus dem Katalog kommen hinzu: falsche Prüfsumme (`checksum-mismatch`), `id` oder Version der ZIP weichen vom Katalog ab (`catalog-mismatch`), installiert ist bereits eine neuere Version (`downgrade`), das Addon braucht eine neuere Plattform (`catalog-incompatible`) und fehlgeschlagener Download (`download-failed`).
 
 Hinweise:
 
@@ -143,7 +172,7 @@ Hinweise:
 
 ## Addons
 
-Die Addons haben eigene Repositories, Versionen und Releases:
+Die Addons haben eigene Repositories, Versionen und Releases. Diese Liste entspricht dem Katalog im Verzeichnis [`addons/`](addons/), den das Modal „Addon hinzufügen“ zeigt. Wie ein Addon in den Katalog kommt, steht in [ADDON-DEVELOPMENT.md](ADDON-DEVELOPMENT.md#addon-in-den-katalog-aufnehmen).
 
 - **Verbraucher** ([m75r/evcc-addon-consumers](https://github.com/m75r/evcc-addon-consumers), [Releases](https://github.com/m75r/evcc-addon-consumers/releases)): Tab „Verbraucher“ mit Ladepunkten mit Steckdose und Verbraucher-Metern aus evcc, live, gegliedert nach „Schaltbar“ und „Nur Messung“. Buttons liefern Steckdosen-Addons über den Erweiterungspunkt `consumers.cardActions`.
 - **Tapo-Steckdosen** ([m75r/evcc-addon-switches-tapo](https://github.com/m75r/evcc-addon-switches-tapo), [Releases](https://github.com/m75r/evcc-addon-switches-tapo/releases)): Gateway für TP-Link-Tapo-Steckdosen (KLAP) als Server-Teil. Erkennt Schaltungen am Gerät und stellt den Modus des Ladepunkts um, misst Verbraucher, liefert ⏻ ☀ bzw. ⏻ für „Verbraucher“. Verwaltung im Dialog „Tapo-Steckdosen“.
@@ -211,4 +240,4 @@ npm run build && node packages/proxy/dist/server.mjs --config .dev/pi.json
 
 evcc-addons steht unter der [MIT-Lizenz](LICENSE), Copyright (c) 2026 Matthias Gasser.
 
-Die ausgelieferten Dateien enthalten Fremdkomponenten unter eigenen Lizenzen: [Preact](https://github.com/preactjs/preact) und [fflate](https://github.com/101arrowz/fflate) (MIT) sowie Icons aus [@h2d2/shopicons](https://github.com/H2D2-Design/h2d2-shopicons) (Apache-2.0). Die Lizenztexte stehen in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Das Debian-Paket installiert beide Dateien nach `/usr/share/doc/evcc-addons/`, das SDK-Tarball enthält sie ebenfalls. Jedes Addon bringt eigene Hinweise für seine Bundles mit.
+Die ausgelieferten Dateien enthalten Fremdkomponenten unter eigenen Lizenzen: [Preact](https://github.com/preactjs/preact) und [fflate](https://github.com/101arrowz/fflate) (MIT), [yaml](https://github.com/eemeli/yaml) (ISC) sowie Icons aus [@h2d2/shopicons](https://github.com/H2D2-Design/h2d2-shopicons) (Apache-2.0). Die Lizenztexte stehen in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Das Debian-Paket installiert beide Dateien nach `/usr/share/doc/evcc-addons/`, das SDK-Tarball enthält sie ebenfalls. Jedes Addon bringt eigene Hinweise für seine Bundles mit.

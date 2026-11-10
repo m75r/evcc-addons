@@ -8,6 +8,13 @@ export const PLUS_ICON =
   '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="24" height="24" fill="currentColor" aria-hidden="true"><path fill="none" d="M0 0h48v48H0z"/><path d="M26 8h-4v14H8v4h14v14h4V26h14v-4H26z"/></svg>';
 
 /**
+ * Pfeil in eine Ablage „upload“ für die Installation aus einer Datei.
+ * Quelle: @h2d2/shopicons 1.9.1, es/regular/upload.js (Apache-2.0, https://github.com/H2D2-Design/h2d2-shopicons)
+ */
+export const UPLOAD_ICON =
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="24" height="24" fill="currentColor" aria-hidden="true"><path fill="none" d="M0 0h48v48H0z"/><path d="M26 31V11.828l8 8L36.828 17 24 4.172 11.171 17 14 19.828l8-8V31z"/><path d="M4 30v10c0 2.206 1.794 4 4 4h32c2.206 0 4-1.794 4-4V30h-4v10H8V30z"/></svg>';
+
+/**
  * Schieberegler „adjust“ wie der Einstellungs-Button von evcc.
  * Quelle: @h2d2/shopicons 1.9.1, es/regular/adjust.js (Apache-2.0, https://github.com/H2D2-Design/h2d2-shopicons)
  */

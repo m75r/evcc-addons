@@ -1,0 +1,12 @@
+id: hello
+name:
+  de: Hallo Welt
+  en: Hello World
+description:
+  de: Beispiel-Addon
+  en: Example addon
+homepage: https://github.com/m75r/evcc-addon-hello
+version: 1.0.0
+apiVersion: 2
+url: https://github.com/m75r/evcc-addon-hello/releases/download/{version}/hello-{version}.zip
+sha256: "39c596a40a2cb5e05e87fa8b7415326475be5c65d543f00cba38283b4beb50fe"

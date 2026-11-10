@@ -3,6 +3,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import type { ServerAddonHost } from "../addons/server-host.js";
 import type { AddonStore } from "../addons/store.js";
 import type { StatusRegistry } from "../addons/status.js";
+import type { CatalogSource } from "../catalog/source.js";
 import type { ProxyConfig } from "../config.js";
 import type { Logger } from "../logger.js";
 
@@ -12,6 +13,7 @@ export interface ApiContext {
   status: StatusRegistry;
   logger: Logger;
   serverAddons: ServerAddonHost;
+  catalog: CatalogSource;
 }
 
 export type Handler = (

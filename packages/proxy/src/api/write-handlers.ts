@@ -1,8 +1,10 @@
 // Schreibende Endpunkte (nur für angemeldete evcc-Admins) und Sitzungsstatus
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { AddonError } from "../addons/errors.js";
+import type { InstallResult } from "../addons/store.js";
 import { readBody, readJsonBody } from "../http/body.js";
 import { sendJson } from "../http/json.js";
+import type { LogFields } from "../logger.js";
 import { isRecord } from "../util.js";
 import { checkAdmin, requireAdmin } from "./auth.js";
 import type { ApiContext, Route } from "./context.js";
@@ -26,19 +28,29 @@ async function install(req: IncomingMessage, res: ServerResponse, ctx: ApiContex
     throw new AddonError("unsupported-media-type", "Erwartet eine ZIP-Datei (application/zip)");
   }
   try {
-    const { addon, previousVersion } = await ctx.store.install(
-      await readBody(req, ctx.config.maxUploadBytes),
-    );
-    const { id, version } = addon.manifest;
-    ctx.logger.info("addon installed", { id, version, previous: previousVersion ?? undefined });
-    await ctx.serverAddons.sync(id);
-    sendJson(res, 201, { addon: toAddonDto(addon, ctx.status), previousVersion });
+    const result = await ctx.store.install(await readBody(req, ctx.config.maxUploadBytes));
+    await respondInstalled(res, ctx, result);
   } catch (err) {
     if (err instanceof AddonError) {
       ctx.logger.warn("addon install rejected", { code: err.code, ...err.details });
     }
     throw err;
   }
+}
+
+/** Abschluss jeder Installation (Upload und Katalog): Log, Server-Teil abgleichen, 201 */
+export async function respondInstalled(
+  res: ServerResponse,
+  ctx: ApiContext,
+  result: InstallResult,
+  fields: LogFields = {},
+): Promise<void> {
+  const { addon, previousVersion } = result;
+  const { id, version } = addon.manifest;
+  const previous = previousVersion ?? undefined;
+  ctx.logger.info("addon installed", { id, version, previous, ...fields });
+  await ctx.serverAddons.sync(id);
+  sendJson(res, 201, { addon: toAddonDto(addon, ctx.status), previousVersion });
 }
 
 async function toggle(req: IncomingMessage, res: ServerResponse, ctx: ApiContext, [id]: string[]) {

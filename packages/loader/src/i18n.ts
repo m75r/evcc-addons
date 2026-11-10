@@ -31,7 +31,23 @@ export const MESSAGES = {
   },
   "manager.startError": { de: "Fehler beim Start: {message}", en: "Failed to start: {message}" },
   "manager.enabled": { de: "Aktiv", en: "Enabled" },
-  "manager.install.title": { de: "Addon installieren", en: "Install addon" },
+  "manager.install.title": { de: "Aus Datei installieren", en: "Install from file" },
+  "catalog.title": { de: "Addon hinzufügen", en: "Add addon" },
+  "catalog.loading": { de: "Katalog wird geladen …", en: "Loading catalog …" },
+  "catalog.loadError": {
+    de: "Katalog nicht geladen: {message}",
+    en: "Catalog not loaded: {message}",
+  },
+  "catalog.empty": { de: "Keine Addons im Katalog.", en: "No addons in the catalog." },
+  "catalog.install": { de: "Installieren", en: "Install" },
+  "catalog.update": { de: "Aktualisieren", en: "Update" },
+  "catalog.reinstall": { de: "Neu installieren", en: "Reinstall" },
+  "catalog.installed": { de: "✓ Installiert", en: "✓ Installed" },
+  "catalog.installedVersion": { de: "Installiert: v{version}", en: "Installed: v{version}" },
+  "catalog.incompatible": {
+    de: "Benötigt eine neuere Version von evcc-addons",
+    en: "Requires a newer version of evcc-addons",
+  },
   "manager.install.button": { de: "Installieren", en: "Install" },
   "manager.install.uploading": { de: "Wird installiert …", en: "Installing …" },
   "manager.install.installed": {
@@ -138,6 +154,30 @@ export const MESSAGES = {
   "error.zip-invalid": {
     de: "Die Datei ist keine gültige ZIP-Datei.",
     en: "The file is not a valid ZIP file.",
+  },
+  "error.catalog-unavailable": {
+    de: "Der Katalog ist nicht erreichbar ({message}).",
+    en: "The catalog is unreachable ({message}).",
+  },
+  "error.download-failed": {
+    de: "Download fehlgeschlagen ({message}).",
+    en: "Download failed ({message}).",
+  },
+  "error.checksum-mismatch": {
+    de: "Die Prüfsumme des Downloads stimmt nicht mit dem Katalog überein.",
+    en: "The checksum of the download does not match the catalog.",
+  },
+  "error.catalog-mismatch": {
+    de: "Das Paket passt nicht zum Katalog: {message}",
+    en: "The package does not match the catalog: {message}",
+  },
+  "error.catalog-incompatible": {
+    de: "Das Addon benötigt eine neuere Version von evcc-addons.",
+    en: "The addon requires a newer version of evcc-addons.",
+  },
+  "error.downgrade": {
+    de: "Kein Downgrade über den Katalog: {message}",
+    en: "No downgrade via the catalog: {message}",
   },
 } satisfies Record<string, Record<"de" | "en", string>>;
 

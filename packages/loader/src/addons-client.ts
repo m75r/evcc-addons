@@ -102,6 +102,31 @@ export async function installAddon(file: Blob): Promise<InstallResponse> {
   return (await res.json()) as InstallResponse;
 }
 
+export type CatalogStatus =
+  "available" | "installed" | "update" | "newer-installed" | "incompatible";
+
+/** Eintrag des Katalogs mit Zustand gegenüber der installierten Version */
+export interface CatalogEntry {
+  id: string;
+  name: Localized;
+  description: Localized;
+  version: string;
+  apiVersion: number;
+  status: CatalogStatus;
+  installedVersion: string | null;
+}
+
+export async function listCatalog(): Promise<CatalogEntry[]> {
+  const res = await request("catalog");
+  return (await res.json()) as CatalogEntry[];
+}
+
+/** Der Proxy lädt die ZIP aus dem Katalog und prüft sie; der Browser schickt nur die id */
+export async function installFromCatalog(id: string): Promise<InstallResponse> {
+  const res = await request(`catalog/${encodeURIComponent(id)}/install`, { method: "POST" });
+  return (await res.json()) as InstallResponse;
+}
+
 export async function setAddonEnabled(id: string, enabled: boolean): Promise<AddonInfo> {
   const res = await request(`addons/${encodeURIComponent(id)}`, {
     method: "PATCH",
@@ -145,6 +170,8 @@ export interface ManagerClient {
   listAddons: () => Promise<AddonInfo[]>;
   getSession: () => Promise<Session>;
   installAddon: (file: Blob) => Promise<InstallResponse>;
+  listCatalog: () => Promise<CatalogEntry[]>;
+  installFromCatalog: (id: string) => Promise<InstallResponse>;
   setAddonEnabled: (id: string, enabled: boolean) => Promise<AddonInfo>;
   saveAddonSettings: (id: string, values: SettingValues) => Promise<AddonInfo>;
   uninstallAddon: (id: string) => Promise<void>;
@@ -155,6 +182,8 @@ export const managerClient: ManagerClient = {
   listAddons,
   getSession,
   installAddon,
+  listCatalog,
+  installFromCatalog,
   setAddonEnabled,
   saveAddonSettings,
   uninstallAddon,

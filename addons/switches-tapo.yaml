@@ -1,0 +1,12 @@
+id: switches-tapo
+name:
+  de: Tapo-Steckdosen
+  en: Tapo smart plugs
+description:
+  de: Tapo-Steckdosen über evcc schalten; Schalter in „Verbraucher“
+  en: Switch Tapo smart plugs through evcc; buttons in “Consumers”
+homepage: https://github.com/m75r/evcc-addon-switches-tapo
+version: 1.0.0
+apiVersion: 2
+url: https://github.com/m75r/evcc-addon-switches-tapo/releases/download/{version}/switches-tapo-{version}.zip
+sha256: "977b01cedc8086fff5f5083dd027ddaa70a350c5265bdf2234da36db46cd01a5"

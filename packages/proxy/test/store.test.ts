@@ -101,6 +101,24 @@ describe("AddonStore", () => {
     expect((await clocked.get("hello")).installedAt).toBe("2026-11-09T10:00:00.001Z");
   });
 
+  it.each([
+    [{ id: "other", version: "0.2.0" }, "Paket enthält hello 0.2.0, erwartet other 0.2.0"],
+    [{ id: "hello", version: "0.3.0" }, "Paket enthält hello 0.2.0, erwartet hello 0.3.0"],
+  ])("lehnt mit expect %o ab, ohne etwas zu schreiben", async (expected, message) => {
+    await store.install(addonZip());
+    const stateBefore = await readFile(join(dataDir, "state.json"), "utf8");
+    const install = store.install(addonZip({ version: "0.2.0" }), { expect: expected });
+    await expect(install).rejects.toMatchObject({ code: "catalog-mismatch", message });
+    expect((await store.get("hello")).manifest.version).toBe("0.1.0");
+    expect(await readdir(join(dataDir, "addons"))).toEqual(["hello"]);
+    expect(await readFile(join(dataDir, "state.json"), "utf8")).toBe(stateBefore);
+  });
+
+  it("installiert mit passendem expect normal", async () => {
+    const result = await store.install(addonZip(), { expect: { id: "hello", version: "0.1.0" } });
+    expect(result).toMatchObject({ previousVersion: null, addon: { manifest: { id: "hello" } } });
+  });
+
   it("meldet unbekannte ids als not-found", async () => {
     await expect(store.get("unknown")).rejects.toMatchObject({ code: "not-found" });
     await expect(store.setEnabled("unknown", true)).rejects.toBeInstanceOf(AddonError);

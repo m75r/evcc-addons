@@ -6,7 +6,7 @@ import { AddonError } from "./errors.js";
 import { parseSettingDefs } from "./settings.js";
 
 export const ADDON_ID_PATTERN = /^[a-z][a-z0-9-]{1,39}$/;
-const VERSION_PATTERN = /^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/;
+export const VERSION_PATTERN = /^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/;
 
 export function isValidAddonId(id: string): boolean {
   return ADDON_ID_PATTERN.test(id);

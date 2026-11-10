@@ -4,9 +4,10 @@ import type { AddonInfo, ManagerClient, Session, SessionReason } from "../addons
 import { t, type MessageKey } from "../i18n.js";
 import { AddonCard, type AddonActions } from "./AddonCard.js";
 import type { ManagerDialogRegistry } from "./dialogs.js";
-import { InstallForm } from "./InstallForm.js";
+import { CatalogModal } from "./CatalogModal.js";
 import { LoginForm } from "./LoginForm.js";
 import { NewButton } from "./NewButton.js";
+import { useLoadable, type Loadable } from "./useLoadable.js";
 
 export interface ManagerPageProps {
   locale: string;
@@ -22,23 +23,6 @@ export interface ManagerPageProps {
   version: string | null;
   /** Dialoge der Addons (api.addManagerDialog) */
   dialogs: ManagerDialogRegistry;
-}
-
-type Loadable<T> =
-  { kind: "loading" } | { kind: "error"; message: string } | { kind: "ready"; value: T };
-
-function useLoadable<T>(load: () => Promise<T>, deps: unknown[]): Loadable<T> {
-  const [state, setState] = useState<Loadable<T>>({ kind: "loading" });
-  useEffect(() => {
-    let active = true;
-    load().then(
-      (value) => active && setState({ kind: "ready", value }),
-      (err: unknown) => active && setState({ kind: "error", message: (err as Error).message }),
-    );
-    return () => void (active = false);
-    // Neu geladen wird nur bei Änderung von deps (wie useEffect)
-  }, deps);
-  return state;
 }
 
 /** Sitzung beim Betreten der Seite und beim Sichtbarwerden des Tabs neu laden */
@@ -61,9 +45,9 @@ export function ManagerPage(props: ManagerPageProps) {
     await props.whenLoaded;
     return client.listAddons();
   }, []);
-  const [installOpen, setInstallOpen] = useState(false);
+  const [catalogOpen, setCatalogOpen] = useState(false);
   const canManage = !forceLogin && session.kind === "ready" && session.value.canManage;
-  const showInstall = canManage && installOpen;
+  const showCatalog = canManage && catalogOpen;
   const reason = forceLogin
     ? "login-required"
     : session.kind === "ready"
@@ -84,25 +68,24 @@ export function ManagerPage(props: ManagerPageProps) {
         locale={locale}
         version={props.version}
         showNew={canManage}
-        newOpen={showInstall}
-        onNew={() => setInstallOpen((open) => !open)}
+        newOpen={showCatalog}
+        onNew={() => setCatalogOpen(true)}
       />
-      {!showInstall && (
-        <p class="text-muted mb-4" data-testid="addons-subtitle">
-          {t("addons.subtitle", locale)}
-        </p>
-      )}
+      <p class="text-muted mb-4" data-testid="addons-subtitle">
+        {t("addons.subtitle", locale)}
+      </p>
       {props.coreErrors.map((message) => (
         <div class="alert alert-danger" key={message}>
           {t("core.error", locale)} {message}
         </div>
       ))}
-      {showInstall && (
-        <InstallForm
+      {showCatalog && (
+        <CatalogModal
           locale={locale}
-          install={(file) => client.installAddon(file)}
+          client={client}
           reload={props.reload}
           onUnauthorized={actions.onUnauthorized}
+          onClose={() => setCatalogOpen(false)}
         />
       )}
       {reason === "login-required" && (

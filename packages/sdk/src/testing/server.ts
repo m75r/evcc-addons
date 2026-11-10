@@ -14,7 +14,18 @@ export interface TestProxyOptions {
   root: string;
   /** Addon-ZIPs relativ zu `root` oder absolut */
   zips?: string[];
+  /** `catalogUrl` des Proxys, Standard `UNREACHABLE_CATALOG_URL` */
+  catalogUrl?: string;
 }
+
+export interface TestConfigOptions {
+  /** Dateiname unter e2e/.build, Standard `proxy.config.json` */
+  file?: string;
+  catalogUrl?: string;
+}
+
+/** Ohne eigenen Katalog: Port 9 (discard) ist lokal nicht belegt, Tests greifen nie auf GitHub zu */
+export const UNREACHABLE_CATALOG_URL = "http://127.0.0.1:9/catalog";
 
 export interface RuntimePaths {
   server: string;
@@ -39,15 +50,17 @@ export function dataDirOf(root: string): string {
   return join(root, "e2e/.data");
 }
 
-/** Schreibt e2e/.build/proxy.config.json und liefert den Pfad */
-export function writeTestConfig(root: string): string {
-  const path = join(root, "e2e/.build/proxy.config.json");
+/** Schreibt e2e/.build/<file> (Standard proxy.config.json) und liefert den Pfad */
+export function writeTestConfig(root: string, opts: TestConfigOptions = {}): string {
+  const { file = "proxy.config.json", catalogUrl = UNREACHABLE_CATALOG_URL } = opts;
+  const path = join(root, "e2e/.build", file);
   const config = {
     listen: { host: "127.0.0.1", port: PROXY_PORT },
     evccUrl: `http://127.0.0.1:${EVCC_PORT}`,
     dataDir: dataDirOf(root),
     publicDir: runtimePaths().publicDir,
     logLevel: "info",
+    catalogUrl,
   };
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, JSON.stringify(config, null, 2) + "\n");
@@ -58,8 +71,10 @@ function absolute(root: string, file: string): string {
   return isAbsolute(file) ? file : resolve(root, file);
 }
 
+/** Eigene Konfigurationsdatei, damit ein Reset die des laufenden Proxys nicht überschreibt */
 function runInstall(opts: TestProxyOptions, reset: boolean): void {
-  const args = [runtimePaths().server, "install", "--config", writeTestConfig(opts.root)];
+  const config = writeTestConfig(opts.root, { file: "proxy.install.json" });
+  const args = [runtimePaths().server, "install", "--config", config];
   if (reset) args.push("--reset");
   args.push(...(opts.zips ?? []).map((zip) => absolute(opts.root, zip)));
   try {
@@ -89,11 +104,10 @@ export function startTestProxy(opts: TestProxyOptions): ChildProcess {
   rmSync(dataDirOf(opts.root), { recursive: true, force: true });
   mkdirSync(dataDirOf(opts.root), { recursive: true });
   resetAddons(opts);
-  const child = spawn(
-    process.execPath,
-    [runtimePaths().server, "--config", writeTestConfig(opts.root)],
-    { stdio: "inherit" },
-  );
+  const config = writeTestConfig(opts.root, { catalogUrl: opts.catalogUrl });
+  const child = spawn(process.execPath, [runtimePaths().server, "--config", config], {
+    stdio: "inherit",
+  });
   for (const signal of ["SIGINT", "SIGTERM"] as const) process.on(signal, () => child.kill(signal));
   return child;
 }

@@ -1,5 +1,6 @@
 // Einstieg für den Playwright-Webserver „Proxy“ (siehe e2eWebServers): optional vorbereiten, dann starten.
-// Umgebung: EVCC_ADDONS_TEST_ROOT, EVCC_ADDONS_TEST_ZIPS (JSON-Liste), EVCC_ADDONS_TEST_PREPARE (Node-Skript)
+// Umgebung: EVCC_ADDONS_TEST_ROOT, EVCC_ADDONS_TEST_ZIPS (JSON-Liste), EVCC_ADDONS_TEST_PREPARE (Node-Skript),
+// EVCC_ADDONS_TEST_CATALOG_URL (optional, catalogUrl des Proxys)
 import { execFileSync } from "node:child_process";
 import { resolve } from "node:path";
 import { startTestProxy } from "./server.js";
@@ -13,7 +14,8 @@ try {
   const root = process.env.EVCC_ADDONS_TEST_ROOT ?? process.cwd();
   const zips = JSON.parse(process.env.EVCC_ADDONS_TEST_ZIPS ?? "[]") as string[];
   prepare(root, process.env.EVCC_ADDONS_TEST_PREPARE);
-  const child = startTestProxy({ root, zips });
+  const catalogUrl = process.env.EVCC_ADDONS_TEST_CATALOG_URL;
+  const child = startTestProxy({ root, zips, catalogUrl });
   child.on("exit", (code) => process.exit(code ?? 0));
 } catch (err) {
   process.stderr.write(

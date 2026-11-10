@@ -13,6 +13,8 @@ export interface ModalProps {
   onClose: () => void;
   /** Breiterer Dialog (Bootstrap `modal-lg`) */
   size?: "lg";
+  /** Weitere Buttons im Kopf, links neben ✕ */
+  headerActions?: ComponentChildren;
   children: ComponentChildren;
 }
 
@@ -46,23 +48,43 @@ export function Modal(props: ModalProps) {
           role="document"
         >
           <div class="modal-content">
-            <div class="modal-header">
-              <h5 class="modal-title" id={props.titleId}>
-                {props.title}
-              </h5>
-              <button
-                type="button"
-                class="btn-close"
-                data-testid={props.closeTestId}
-                aria-label={props.closeLabel}
-                onClick={props.onClose}
-              />
-            </div>
+            <ModalHeader {...props} />
             <div class="modal-body">{props.children}</div>
           </div>
         </div>
       </div>
       <div class="modal-backdrop fade show" />
     </>
+  );
+}
+
+/** Ohne `headerActions` unverändert; mit Aktionen stehen sie und ✕ in einem Container rechts */
+function ModalHeader(props: ModalProps) {
+  return (
+    <div class="modal-header">
+      <h5 class="modal-title" id={props.titleId}>
+        {props.title}
+      </h5>
+      {props.headerActions ? (
+        <div class="ms-auto d-flex align-items-center gap-2">
+          {props.headerActions}
+          <CloseButton {...props} extraClass=" m-0" />
+        </div>
+      ) : (
+        <CloseButton {...props} />
+      )}
+    </div>
+  );
+}
+
+function CloseButton(props: ModalProps & { extraClass?: string }) {
+  return (
+    <button
+      type="button"
+      class={`btn-close${props.extraClass ?? ""}`}
+      data-testid={props.closeTestId}
+      aria-label={props.closeLabel}
+      onClick={props.onClose}
+    />
   );
 }

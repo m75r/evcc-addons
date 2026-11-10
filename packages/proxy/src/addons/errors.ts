@@ -19,10 +19,19 @@ export type AddonErrorCode =
   | "admin-password-missing"
   | "demo-mode"
   | "evcc-unreachable"
-  | "origin-mismatch";
+  | "origin-mismatch"
+  | "catalog-unavailable"
+  | "catalog-invalid"
+  | "download-failed"
+  | "checksum-mismatch"
+  | "catalog-mismatch"
+  | "catalog-incompatible"
+  | "downgrade";
 
 const STATUS: Partial<Record<AddonErrorCode, number>> = {
   "not-found": 404,
+  "catalog-incompatible": 409,
+  downgrade: 409,
   "too-large": 413,
   "unsupported-media-type": 415,
   "login-required": 401,
@@ -30,6 +39,10 @@ const STATUS: Partial<Record<AddonErrorCode, number>> = {
   "demo-mode": 403,
   "origin-mismatch": 403,
   "evcc-unreachable": 502,
+  "catalog-unavailable": 502,
+  "download-failed": 502,
+  "checksum-mismatch": 502,
+  "catalog-mismatch": 502,
 };
 
 export class AddonError extends Error {

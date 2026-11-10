@@ -28,6 +28,11 @@ export interface InstallResult {
   previousVersion: string | null;
 }
 
+export interface InstallOptions {
+  /** Erwartete id und Version, z. B. aus dem Katalog; Abweichung ergibt `catalog-mismatch` */
+  expect?: { id: string; version: string };
+}
+
 /** Eintrag je Addon in state.json; `settings` enthält nur ausdrücklich gesetzte Werte */
 interface StoredEntry {
   enabled: boolean;
@@ -84,8 +89,8 @@ export class AddonStore {
     return this.installed(manifest, state.addons[id]);
   }
 
-  install(buffer: Uint8Array): Promise<InstallResult> {
-    return this.serialized(() => this.doInstall(buffer));
+  install(buffer: Uint8Array, opts: InstallOptions = {}): Promise<InstallResult> {
+    return this.serialized(() => this.doInstall(buffer, opts));
   }
 
   setEnabled(id: string, enabled: boolean): Promise<InstalledAddon> {
@@ -135,8 +140,9 @@ export class AddonStore {
     return join(this.addonsDir, id);
   }
 
-  private async doInstall(buffer: Uint8Array): Promise<InstallResult> {
+  private async doInstall(buffer: Uint8Array, opts: InstallOptions): Promise<InstallResult> {
     const pkg = readAddonZip(buffer, this.limits);
+    if (opts.expect) assertExpected(pkg.manifest, opts.expect);
     const { id } = pkg.manifest;
     const previous = await this.findPrevious(id);
     const tmpDir = join(this.addonsDir, `.tmp-${id}-${randomSuffix()}`);
@@ -300,6 +306,16 @@ function toInstalled(
     installedAt: typeof entry?.installedAt === "string" ? entry.installedAt : null,
     hasData,
   };
+}
+
+/** Prüft id und Version des Pakets, bevor etwas geschrieben wird */
+function assertExpected(manifest: AddonManifest, expected: { id: string; version: string }): void {
+  if (manifest.id === expected.id && manifest.version === expected.version) return;
+  throw new AddonError(
+    "catalog-mismatch",
+    `Paket enthält ${manifest.id} ${manifest.version}, erwartet ${expected.id} ${expected.version}`,
+    { id: expected.id },
+  );
 }
 
 function notFound(id: string): AddonError {

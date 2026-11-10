@@ -11,6 +11,8 @@ import { extRoutes } from "./api/ext-routes.js";
 import { readRoutes } from "./api/read-handlers.js";
 import { writeRoutes } from "./api/write-handlers.js";
 import { createApiRouter, type ApiRouter } from "./api/router.js";
+import { catalogRoutes } from "./catalog/api.js";
+import { CatalogSource } from "./catalog/source.js";
 import type { ProxyConfig } from "./config.js";
 import { sendError } from "./http/json.js";
 import { redactPath } from "./http/redact.js";
@@ -26,6 +28,7 @@ export interface ProxyDeps {
   logger: Logger;
   status?: StatusRegistry;
   store?: AddonStore;
+  catalog?: CatalogSource;
 }
 
 export interface ProxyServer {
@@ -50,7 +53,7 @@ export function createProxyServer(config: ProxyConfig, deps: ProxyDeps): ProxySe
     logger: deps.logger,
     target,
     api,
-    router: createApiRouter([...readRoutes, ...writeRoutes, ...extRoutes], api),
+    router: createApiRouter([...readRoutes, ...writeRoutes, ...catalogRoutes, ...extRoutes], api),
   };
   const server = http.createServer((req, res) => {
     logRequest(req, res, deps.logger);
@@ -91,7 +94,9 @@ function createApiContext(config: ProxyConfig, deps: ProxyDeps): ApiContext {
     dataDir: config.dataDir,
     evccUrl: config.evccUrl,
   });
-  return { config, store, status, logger: deps.logger, serverAddons };
+  const catalog =
+    deps.catalog ?? new CatalogSource({ url: config.catalogUrl, logger: deps.logger });
+  return { config, store, status, logger: deps.logger, serverAddons, catalog };
 }
 
 async function handleRequest(req: IncomingMessage, res: ServerResponse, ctx: RequestContext) {

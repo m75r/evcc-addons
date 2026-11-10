@@ -23,6 +23,19 @@ export default defineConfig({
     evccConfig: "e2e/fixtures/evcc.yaml",
     zips: seedZips(),
     prepare: "e2e/seed.mjs",
+    // Fake-Katalog aus e2e/.build/catalog (geschrieben von seed.mjs)
+    catalogUrl: "http://127.0.0.1:17095/contents/addons",
+    extra: [
+      {
+        command: "node e2e/fake-catalog.mjs",
+        cwd: root,
+        url: "http://127.0.0.1:17095/health",
+        timeout: 10_000,
+        reuseExistingServer: false,
+        stdout: "ignore",
+        stderr: "pipe",
+      },
+    ],
   }),
   projects: [
     { name: "setup", testMatch: /.*\.setup\.ts/ },

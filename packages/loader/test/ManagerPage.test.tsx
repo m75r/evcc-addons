@@ -58,6 +58,8 @@ function fakeClient(session: Session, overrides: Partial<ManagerClient> = {}): M
     listAddons: vi.fn(() => Promise.resolve([ADDON])),
     getSession: vi.fn(() => Promise.resolve(session)),
     installAddon: vi.fn(() => Promise.resolve({ addon: ADDON, previousVersion: null })),
+    listCatalog: vi.fn(() => Promise.resolve([])),
+    installFromCatalog: vi.fn(() => Promise.resolve({ addon: ADDON, previousVersion: null })),
     setAddonEnabled: vi.fn(() => Promise.resolve(ADDON)),
     saveAddonSettings: vi.fn((_id: string, values: SettingValues) =>
       Promise.resolve({ ...WITH_SETTINGS, settingValues: { ...values } }),
@@ -108,6 +110,7 @@ async function upload(error: ApiError) {
   );
   await mount(client);
   await act(() => q("addons-new")?.click());
+  await act(() => q("catalog-upload")?.click());
   const input = q("addons-install-file") as HTMLInputElement;
   const file = new File(["x"], "a.zip");
   Object.defineProperty(input, "files", { value: [file] });
@@ -131,17 +134,50 @@ describe("ManagerPage", () => {
     expect(q("addon-uninstall")).not.toBeNull();
   });
 
-  it("„+ Neu“ blendet den Subtext aus und das Installieren ein, erneut wieder zurück", async () => {
+  it("„+ Neu“ öffnet das Modal „Addon hinzufügen“, der Untertitel bleibt, ✕ schließt", async () => {
     await mount(fakeClient({ canManage: true, reason: null }));
     const button = q("addons-new") as HTMLButtonElement;
     expect(button.getAttribute("aria-expanded")).toBe("false");
     await act(() => button.click());
-    expect(q("addons-install")).not.toBeNull();
-    expect(q("addons-subtitle")).toBeNull();
+    expect(q("catalog-modal")?.querySelector(".modal-title")?.textContent).toBe("Addon hinzufügen");
+    expect(button.classList.contains("active")).toBe(true);
     expect(button.getAttribute("aria-expanded")).toBe("true");
-    await act(() => button.click());
-    expect(q("addons-install")).toBeNull();
     expect(q("addons-subtitle")).not.toBeNull();
+    expect(q("addons-install")).toBeNull();
+    await act(() => q("catalog-close")?.click());
+    expect(q("catalog-modal")).toBeNull();
+    expect(button.classList.contains("active")).toBe(false);
+  });
+
+  it("zeigt bei 401 einer Katalog-Installation das Anmeldefeld", async () => {
+    const entry = {
+      id: "hello",
+      name: "Hallo",
+      description: "Beispiel",
+      version: "0.2.0",
+      apiVersion: 1,
+      status: "update" as const,
+      installedVersion: "0.1.0",
+    };
+    const client = fakeClient(
+      { canManage: true, reason: null },
+      {
+        listCatalog: vi.fn(() => Promise.resolve([entry])),
+        installFromCatalog: vi.fn(() =>
+          Promise.reject(new ApiError(401, "login-required", "Bitte anmelden")),
+        ),
+      },
+    );
+    await mount(client);
+    await act(() => q("addons-new")?.click());
+    await act(() => new Promise((resolve) => setTimeout(resolve, 0)));
+    await act(async () => {
+      q("catalog-action")?.click();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(q("catalog-modal")).toBeNull();
+    expect(q("addons-login")).not.toBeNull();
+    expect(q("addons-new")).toBeNull();
   });
 
   it("zeigt ohne Login das Anmeldefeld und deaktivierte Schalter", async () => {
@@ -180,10 +216,11 @@ describe("ManagerPage", () => {
     expect(q("addons-install-error")?.textContent).toBe(text);
   });
 
-  it("wechselt bei 401 einer Aktion zum Anmeldefeld", async () => {
+  it("wechselt bei 401 eines Uploads zum Anmeldefeld und schließt das Modal", async () => {
     await upload(new ApiError(401, "login-required", "Bitte anmelden"));
     expect(q("addons-login")).not.toBeNull();
     expect(q("addons-install")).toBeNull();
+    expect(q("catalog-modal")).toBeNull();
   });
 
   it("zeigt „Passwort falsch“ und lädt nach erfolgreichem Login neu", async () => {

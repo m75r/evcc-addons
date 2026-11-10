@@ -43,9 +43,14 @@ export async function login(page: Page, password = ADMIN_PASSWORD): Promise<void
   await expect(page.getByTestId("addons-new")).toBeVisible();
 }
 
-/** Blendet über „+ Neu“ das Formular „Addon installieren“ ein und lädt die ZIP hoch */
+/**
+ * Öffnet über „+ Neu“ das Modal „Addon hinzufügen“, blendet mit [⇪] „Aus Datei installieren“ ein
+ * und lädt die ZIP hoch (ab SDK 2.1.0; vorher stand das Formular direkt auf der Seite)
+ */
 export async function uploadZip(page: Page, file: string): Promise<void> {
   await page.getByTestId("addons-new").click();
+  await expect(page.getByTestId("catalog-modal")).toBeVisible();
+  await page.getByTestId("catalog-upload").click();
   await page.getByTestId("addons-install-file").setInputFiles(file);
   await page
     .getByTestId("addons-install")
@@ -53,7 +58,7 @@ export async function uploadZip(page: Page, file: string): Promise<void> {
     .click();
 }
 
-/** Lädt die ZIP angemeldet hoch und wartet, bis die Seite danach neu geladen ist */
+/** Lädt die ZIP angemeldet über das Modal hoch (`uploadZip`) und wartet auf das Neuladen der Seite */
 export async function installViaUi(page: Page, file: string): Promise<void> {
   const reloaded = page.waitForEvent("load");
   await uploadZip(page, file);
@@ -85,6 +90,8 @@ export interface E2eOptions {
   prepare?: string;
   /** Weitere Server, z. B. Fake-Geräte; sie starten vor dem Proxy */
   extra?: E2eWebServer[];
+  /** Listing-URL des Katalogs (`catalogUrl` des Proxys); Standard: unerreichbar, kein Zugriff auf GitHub */
+  catalogUrl?: string;
 }
 
 function stringEnv(): Record<string, string> {
@@ -119,6 +126,7 @@ function proxyServer(opts: E2eOptions): E2eWebServer {
     EVCC_ADDONS_TEST_ROOT: opts.root,
     EVCC_ADDONS_TEST_ZIPS: JSON.stringify(opts.zips ?? []),
     ...(opts.prepare ? { EVCC_ADDONS_TEST_PREPARE: opts.prepare } : {}),
+    ...(opts.catalogUrl ? { EVCC_ADDONS_TEST_CATALOG_URL: opts.catalogUrl } : {}),
   };
   return {
     command: `node "${script}"`,

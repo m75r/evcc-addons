@@ -20,7 +20,12 @@ try {
     sourcemap: false,
     legalComments: "eof",
     banner: {
-      js: legalBanner("evcc-addons server", ["fflate (MIT)"]),
+      js: [
+        legalBanner("evcc-addons server", ["fflate (MIT)", "yaml (ISC)"]),
+        // CommonJS-Abhängigkeiten (yaml) rufen require("process") auf; im ESM-Bundle fehlt require
+        'import { createRequire as __createRequire } from "node:module";',
+        "const require = __createRequire(import.meta.url);",
+      ].join("\n"),
     },
     define: { __VERSION__: JSON.stringify(pkg.version) },
     logLevel: "warning",
