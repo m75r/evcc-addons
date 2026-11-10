@@ -167,7 +167,7 @@ function updateAvailable(platform: Loadable<PlatformInfo | null>): boolean {
 interface PageHeaderProps {
   locale: string;
   version: string | null;
-  /** „+ Neu“, Versions-Button und Badge nur mit Admin-Login */
+  /** „Marketplace“, Versions-Button und Badge nur mit Admin-Login */
   canManage: boolean;
   updateAvailable: boolean;
   newOpen: boolean;
@@ -195,7 +195,7 @@ function PageHeader(props: PageHeaderProps) {
       </div>
       {props.canManage && (
         <NewButton
-          label={t("manager.new", locale)}
+          label={t("manager.marketplace", locale)}
           testId="addons-new"
           open={props.newOpen}
           onClick={props.onNew}

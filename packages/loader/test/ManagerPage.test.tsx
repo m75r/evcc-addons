@@ -128,10 +128,10 @@ async function upload(error: ApiError) {
 }
 
 describe("ManagerPage", () => {
-  it("zeigt bei canManage „+ Neu“, Schalter und Deinstallieren", async () => {
+  it("zeigt bei canManage „Marketplace“, Schalter und Deinstallieren", async () => {
     await mount(fakeClient({ canManage: true, reason: null }));
-    expect(q("addons-new")?.textContent).toBe("Neu");
-    expect(q("addons-new")?.querySelector("svg")).not.toBeNull();
+    expect(q("addons-new")?.textContent).toBe("Marketplace");
+    expect(q("addons-new")?.querySelector("svg")).toBeNull();
     expect(q("addons-install")).toBeNull();
     expect(q("addons-subtitle")?.textContent).toContain("Addons erweitern evcc");
     expect(q("addons-login")).toBeNull();
@@ -139,7 +139,7 @@ describe("ManagerPage", () => {
     expect(q("addon-uninstall")).not.toBeNull();
   });
 
-  it("„+ Neu“ öffnet das Modal „Addon hinzufügen“, der Untertitel bleibt, ✕ schließt", async () => {
+  it("„Marketplace“ öffnet das Modal „Addon hinzufügen“, der Untertitel bleibt, ✕ schließt", async () => {
     await mount(fakeClient({ canManage: true, reason: null }));
     const button = q("addons-new") as HTMLButtonElement;
     expect(button.getAttribute("aria-expanded")).toBe("false");

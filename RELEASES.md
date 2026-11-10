@@ -2,6 +2,12 @@
 
 Was sich in den einzelnen Versionen von evcc-addons für dich ändert. Installation und Update stehen in der [README](README.md#installation-auf-dem-raspberry-pi).
 
+## 2.2.2 (2026-11-10)
+
+- Der Button „+ Neu“ auf der Seite „Addons“ heißt jetzt „Marketplace“ und öffnet wie bisher „Addon hinzufügen“.
+- Die Version eines installierten Addons steht jetzt direkt neben seinem Namen.
+- Die Versionsnummer neben dem Titel „Addons“ wird beim Darüberfahren nicht mehr unterstrichen.
+
 ## 2.2.1 (2026-11-10)
 
 - Escape schließt Fenster auf der Seite „Addons“ jetzt zuverlässig, auch direkt nach dem Öffnen. Bisher blieb ein Fenster manchmal offen, wenn man Escape sofort drückte.

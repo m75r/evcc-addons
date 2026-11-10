@@ -10,7 +10,7 @@ const EXT = "/addons-api/ext/server-addon";
 // Die Server-Addons stehen nicht in seed.json; resetAddons entfernt sie per CLI samt addon-data/
 test.beforeEach(() => resetAddons());
 
-/** Anmelden und die ZIP über „+ Neu“ hochladen */
+/** Anmelden und die ZIP über „Marketplace“ hochladen */
 async function install(page: Page, file: string): Promise<void> {
   await loginViaUi(page);
   await installViaUi(page, file);

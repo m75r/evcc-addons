@@ -1,13 +1,6 @@
 // SVG-Icons des Loaders
 
 /**
- * Plus wie evcc Config/NewDeviceButton (shopicon-regular-plus).
- * Quelle: @h2d2/shopicons 1.9.1, es/regular/plus.js (Apache-2.0, https://github.com/H2D2-Design/h2d2-shopicons)
- */
-export const PLUS_ICON =
-  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="24" height="24" fill="currentColor" aria-hidden="true"><path fill="none" d="M0 0h48v48H0z"/><path d="M26 8h-4v14H8v4h14v14h4V26h14v-4H26z"/></svg>';
-
-/**
  * Pfeil in eine Ablage „upload“ für die Installation aus einer Datei.
  * Quelle: @h2d2/shopicons 1.9.1, es/regular/upload.js (Apache-2.0, https://github.com/H2D2-Design/h2d2-shopicons)
  */

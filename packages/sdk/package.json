@@ -1,6 +1,6 @@
 {
   "name": "@evcc-addons/sdk",
-  "version": "2.2.1",
+  "version": "2.2.2",
   "private": true,
   "type": "module",
   "description": "SDK for evcc addons: types, build CLI, test helpers and the platform runtime",

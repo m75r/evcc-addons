@@ -44,18 +44,15 @@ html.evcc-addons-page-route #app > .app {
   vertical-align: middle;
 }
 
-/* Versionsnummer als Button (Admins): Farbe und Größe wie .evcc-addons-version, Unterstreichung nur bei Hover/Fokus */
-.btn.evcc-addons-version-btn {
+/* Versionsnummer als Button (Admins): Farbe und Größe wie .evcc-addons-version, nie unterstrichen */
+.btn.evcc-addons-version-btn,
+.btn.evcc-addons-version-btn:hover,
+.btn.evcc-addons-version-btn:focus-visible {
   font-size: 0.875rem;
   line-height: inherit;
   border: 0;
   text-decoration: none;
   vertical-align: middle;
-}
-
-.btn.evcc-addons-version-btn:hover,
-.btn.evcc-addons-version-btn:focus-visible {
-  text-decoration: underline;
 }
 
 /* Badge „Update verfügbar“ hinter der Version, ohne Großschreibung des h1 */
@@ -68,11 +65,13 @@ html.evcc-addons-page-route #app > .app {
   cursor: pointer;
 }
 
-/* Button „Neu“ wie evcc Config/NewDeviceButton, ohne dessen Mindesthöhe (steht im Seitenkopf) */
+/* Button „Marketplace“ wie evcc Config/NewDeviceButton, ohne dessen Mindesthöhe (steht im Seitenkopf);
+   Zeilenhöhe 24px wie zuvor das Plus-Icon, damit die Höhe gleich bleibt */
 .evcc-addons-new-btn {
   border-radius: 1rem;
   border: 1px solid var(--evcc-gray-50);
   padding: 0.5rem 1rem;
+  line-height: 24px;
   transition: border-color var(--evcc-transition-fast, 0.1s) linear;
   background: none;
   color: inherit;
@@ -84,13 +83,6 @@ html.evcc-addons-page-route #app > .app {
 .evcc-addons-new-btn.active {
   border-color: var(--evcc-default-text);
   color: var(--evcc-default-text);
-}
-
-.evcc-addons-new-icon,
-.evcc-addons-new-icon svg {
-  display: block;
-  width: 24px;
-  height: 24px;
 }
 
 /* Einstellungs-Button der Addon-Karte: Icon ohne Zeilenhöhe, damit die Kopfzeile nicht wächst */

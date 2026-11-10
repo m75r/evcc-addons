@@ -2,7 +2,7 @@
   "name": "evcc-addons",
   "private": true,
   "type": "module",
-  "version": "2.2.1",
+  "version": "2.2.2",
   "description": "Reverse proxy that extends evcc with installable addons",
   "license": "MIT",
   "engines": {

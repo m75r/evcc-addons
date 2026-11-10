@@ -388,7 +388,7 @@ export default defineConfig({
 - `prepare`: Node-Skript, das vor dem Proxy läuft (z. B. Fixtures bauen). `extra`: weitere Webserver, z. B. Fake-Geräte; sie starten vor dem Proxy.
 - `catalogUrl`: Listing-URL des Katalogs für den Test-Proxy, z. B. ein eigener Fake-Server in `extra`. Standard ist eine unerreichbare Adresse, damit E2E-Tests nie GitHub abfragen; das Modal „Addon hinzufügen“ zeigt dann einen Katalogfehler, der Upload funktioniert.
 - `releaseUrl`: Release-API der Plattform (`releases/latest`) für den Test-Proxy. Standard ist ebenfalls eine unerreichbare Adresse: Ein Badge „Update verfügbar“ erscheint nie, das Popup hinter der Versionsnummer zeigt Admins einen Prüffehler.
-- `uploadZip(page, file)` öffnet ab SDK 2.1.0 über „+ Neu“ das Modal „Addon hinzufügen“, blendet mit dem Upload-Icon (`catalog-upload`) „Aus Datei installieren“ ein und lädt die Datei hoch. `installViaUi` nutzt `uploadZip` und wartet auf das Neuladen. Mit SDK 2.0.0 stand das Formular noch direkt auf der Seite.
+- `uploadZip(page, file)` öffnet ab SDK 2.1.0 über „Marketplace“ das Modal „Addon hinzufügen“, blendet mit dem Upload-Icon (`catalog-upload`) „Aus Datei installieren“ ein und lädt die Datei hoch. `installViaUi` nutzt `uploadZip` und wartet auf das Neuladen. Mit SDK 2.0.0 stand das Formular noch direkt auf der Seite.
 - Im Setup-Projekt `setAdminPassword(request)` aufrufen, damit `login(page)` mit `ADMIN_PASSWORD` funktioniert.
 - evcc erreicht den Proxy aus dem Container unter `http://host.docker.internal:17080` (Docker Desktop). Unter Linux ohne Docker Desktop braucht der Container dafür einen Eintrag `host.docker.internal:host-gateway`.
 
@@ -415,7 +415,7 @@ sudo -u evcc-addons node /opt/evcc-addons/server.mjs install --config /etc/evcc-
 
 ## Addon in den Katalog aufnehmen
 
-Das Modal „Addon hinzufügen“ (Seite „Addons“ → „+ Neu“) zeigt den Katalog aus dem Verzeichnis [`addons/`](addons/) dieses Repos. Je Addon gibt es dort eine Datei `addons/<id>.yaml`:
+Das Modal „Addon hinzufügen“ (Seite „Addons“ → „Marketplace“) zeigt den Katalog aus dem Verzeichnis [`addons/`](addons/) dieses Repos. Je Addon gibt es dort eine Datei `addons/<id>.yaml`:
 
 ```yaml
 id: my-addon

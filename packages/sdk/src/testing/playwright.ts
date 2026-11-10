@@ -44,7 +44,7 @@ export async function login(page: Page, password = ADMIN_PASSWORD): Promise<void
 }
 
 /**
- * Öffnet über „+ Neu“ das Modal „Addon hinzufügen“, blendet mit [⇪] „Aus Datei installieren“ ein
+ * Öffnet über „Marketplace“ das Modal „Addon hinzufügen“, blendet mit [⇪] „Aus Datei installieren“ ein
  * und lädt die ZIP hoch (ab SDK 2.1.0; vorher stand das Formular direkt auf der Seite)
  */
 export async function uploadZip(page: Page, file: string): Promise<void> {

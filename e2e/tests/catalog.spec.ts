@@ -14,7 +14,7 @@ async function openCatalog(page: Page) {
   return modal;
 }
 
-test("„+ Neu“ zeigt den Katalog mit Zustand und Buttons je Eintrag", async ({ page }) => {
+test("„Marketplace“ zeigt den Katalog mit Zustand und Buttons je Eintrag", async ({ page }) => {
   const modal = await openCatalog(page);
   await expect(modal.locator(".modal-title")).toHaveText("Addon hinzufügen");
   await expect(modal.locator(".evcc-addons-catalog-entry")).toHaveCount(4);

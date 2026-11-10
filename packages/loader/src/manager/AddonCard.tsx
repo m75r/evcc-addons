@@ -122,12 +122,16 @@ function CardHeader(props: CardHeaderProps) {
   return (
     <div class="d-flex align-items-start justify-content-between gap-3">
       <div class="flex-grow-1 min-w-0">
-        <strong class="d-block text-truncate">{localize(addon.name, locale)}</strong>
+        <div class="d-flex align-items-baseline gap-2 min-w-0">
+          <strong class="text-truncate">{localize(addon.name, locale)}</strong>
+          <span class="text-muted small text-nowrap" data-testid="addon-version">
+            v{addon.version}
+          </span>
+        </div>
         {addon.description && (
           <div class="text-muted small">{localize(addon.description, locale)}</div>
         )}
       </div>
-      <span class="text-muted small text-nowrap pt-1">v{addon.version}</span>
       {addon.enabled && <DialogButtons {...props} />}
       {addon.settings.length > 0 && <SettingsButton locale={locale} onClick={onOpenSettings} />}
       <div class="form-check form-switch m-0 pt-1">

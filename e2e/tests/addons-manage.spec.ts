@@ -36,7 +36,7 @@ function borderMatchesGray(locator: Locator): Promise<boolean> {
   });
 }
 
-test("„+ Neu“ öffnet das Modal, ⇪ blendet den Upload ein und wieder aus, Untertitel bleibt", async ({
+test("„Marketplace“ öffnet das Modal, ⇪ blendet den Upload ein und wieder aus, Untertitel bleibt", async ({
   page,
 }) => {
   await loginViaUi(page);

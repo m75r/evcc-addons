@@ -1,6 +1,6 @@
 {
   "name": "@evcc-addons/proxy",
-  "version": "2.2.1",
+  "version": "2.2.2",
   "private": true,
   "type": "module",
   "description": "evcc addons reverse proxy",

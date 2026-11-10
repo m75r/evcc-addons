@@ -109,7 +109,7 @@ sudo systemctl restart evcc-addons
 
 Das Paket enthält keine Addons. Jedes Addon hat ein eigenes Repository mit Releases, dort liegt die ZIP `<id>-<version>.zip` (siehe [Addons](#addons)).
 
-Variante A, im Browser aus dem Katalog: „Mehr“ → „Addons“ → „+ Neu“ öffnet „Addon hinzufügen“, dort beim gewünschten Addon „Installieren“ drücken. Der Proxy lädt die ZIP selbst von GitHub und prüft sie.
+Variante A, im Browser aus dem Katalog: „Mehr“ → „Addons“ → „Marketplace“ öffnet „Addon hinzufügen“, dort beim gewünschten Addon „Installieren“ drücken. Der Proxy lädt die ZIP selbst von GitHub und prüft sie.
 
 Variante B, im Browser aus einer Datei: ZIP herunterladen, in „Addon hinzufügen“ oben rechts auf das Upload-Icon klicken und die Datei hochladen. Das geht auch ohne Internetzugang des Pi.
 
@@ -178,7 +178,7 @@ Die Seite „Addons“ (Menü „Mehr“ → „Addons“, `#/addons`) listet al
   Mit dem Debian-Paket zeigt das Popup stattdessen „Aktualisieren“. Ein Klick startet die Installation über den Updater des Pakets. Das Popup zeigt nacheinander „Aktualisierung wird gestartet …“, „v<version> wird heruntergeladen …“, „v<version> wird installiert …“ und „Dienst startet neu …“; solange lässt es sich nicht schließen. Sobald die neue Version läuft, lädt die Seite neu. Scheitert das Update (z. B. falsche Prüfsumme, geänderte Abhängigkeiten) oder dauert es länger als 5 Minuten, nennt das Popup den Grund und verweist auf `journalctl -u evcc-addons-update`; die bisherige Version läuft dann weiter.
 
 - **Anmelden:** Ohne Login zeigt die Seite das Feld „Zum Verwalten anmelden“. Das Passwort ist das evcc-Admin-Passwort. Die Anmeldung gilt danach auch in evcc selbst (Menü „Mehr“ zeigt „Abmelden“), und „Abmelden“ in evcc beendet auch die Verwaltung. Der Proxy speichert kein Passwort, er fragt für jede Änderung `api/auth/status` bei evcc ab.
-- **Installieren:** „+ Neu“ rechts neben dem Titel öffnet das Modal „Addon hinzufügen“ mit dem Katalog (siehe [Addons](#addons)). Jeder Eintrag zeigt Name, Version und Beschreibung:
+- **Installieren:** „Marketplace“ rechts neben dem Titel öffnet das Modal „Addon hinzufügen“ mit dem Katalog (siehe [Addons](#addons)). Jeder Eintrag zeigt Name, Version und Beschreibung:
   - „Installieren“: noch nicht installiert
   - „Installiert: v<alt>“ und „Aktualisieren“: der Katalog bietet eine neuere Version
   - „✓ Installiert“ und „Neu installieren“: dieselbe Version ist installiert
@@ -216,7 +216,7 @@ Die Addons haben eigene Repositories, Versionen und Releases. Diese Liste entspr
 Mit 2.0.0 ist das Tapo-Gateway aus dem Kern in das Addon „Tapo-Steckdosen“ (`switches-tapo`) gezogen.
 
 1. Paket 2.0.0 installieren. Beim ersten Start verschiebt der Dienst `/var/lib/evcc-addons/switches.json` nach `/var/lib/evcc-addons/addon-data/switches-tapo/switches.json` (Log: `legacy switches migrated`). IDs, Tokens und Zugangsdaten bleiben.
-2. Das Addon `switches-tapo` von seiner [Release-Seite](https://github.com/m75r/evcc-addon-switches-tapo/releases) installieren, im Browser über „+ Neu“ oder auf dem Pi:
+2. Das Addon `switches-tapo` von seiner [Release-Seite](https://github.com/m75r/evcc-addon-switches-tapo/releases) installieren, im Browser über „Marketplace“ oder auf dem Pi:
    ```sh
    sudo -u evcc-addons node /opt/evcc-addons/server.mjs install --config /etc/evcc-addons/config.json switches-tapo-<version>.zip
    sudo systemctl restart evcc-addons

@@ -1,5 +1,4 @@
-// Button wie evcc Config/NewDeviceButton (Plus + Text, grauer Rahmen)
-import { PLUS_ICON } from "../icons.js";
+// Button im Stil von evcc Config/NewDeviceButton (nur Text, grauer Rahmen)
 
 export interface NewButtonProps {
   label: string;
@@ -18,11 +17,7 @@ export function NewButton({ label, testId, open, onClick }: NewButtonProps) {
       aria-expanded={open}
       onClick={onClick}
     >
-      <span
-        class="evcc-addons-new-icon me-1 flex-shrink-0"
-        dangerouslySetInnerHTML={{ __html: PLUS_ICON }}
-      />
-      <span>{label}</span>
+      {label}
     </button>
   );
 }

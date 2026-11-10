@@ -16,7 +16,7 @@ export const MESSAGES = {
     de: "Addons erweitern evcc um eigene Tabs, Seiten und Menüeinträge. Installieren, Einstellen und Deinstallieren ist nur mit dem Admin-Login von evcc möglich.",
     en: "Addons extend evcc with their own tabs, pages and menu items. Installing, configuring and uninstalling requires the evcc admin login.",
   },
-  "manager.new": { de: "Neu", en: "New" },
+  "manager.marketplace": { de: "Marketplace", en: "Marketplace" },
   "page.notFound": { de: "Seite nicht gefunden", en: "Page not found" },
   "page.mountError": {
     de: "Die Seite konnte nicht angezeigt werden:",
