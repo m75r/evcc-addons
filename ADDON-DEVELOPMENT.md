@@ -387,6 +387,7 @@ export default defineConfig({
 - `zips` sind vor jedem Start installiert. `resetAddons({ root, zips })` setzt den Stand in einem Test zurück (löscht auch `addon-data/`).
 - `prepare`: Node-Skript, das vor dem Proxy läuft (z. B. Fixtures bauen). `extra`: weitere Webserver, z. B. Fake-Geräte; sie starten vor dem Proxy.
 - `catalogUrl`: Listing-URL des Katalogs für den Test-Proxy, z. B. ein eigener Fake-Server in `extra`. Standard ist eine unerreichbare Adresse, damit E2E-Tests nie GitHub abfragen; das Modal „Addon hinzufügen“ zeigt dann einen Katalogfehler, der Upload funktioniert.
+- `releaseUrl`: Release-API der Plattform (`releases/latest`) für den Test-Proxy. Standard ist ebenfalls eine unerreichbare Adresse: Ein Badge „Update verfügbar“ erscheint nie, das Popup hinter der Versionsnummer zeigt Admins einen Prüffehler.
 - `uploadZip(page, file)` öffnet ab SDK 2.1.0 über „+ Neu“ das Modal „Addon hinzufügen“, blendet mit dem Upload-Icon (`catalog-upload`) „Aus Datei installieren“ ein und lädt die Datei hoch. `installViaUi` nutzt `uploadZip` und wartet auf das Neuladen. Mit SDK 2.0.0 stand das Formular noch direkt auf der Seite.
 - Im Setup-Projekt `setAdminPassword(request)` aufrufen, damit `login(page)` mit `ADMIN_PASSWORD` funktioniert.
 - evcc erreicht den Proxy aus dem Container unter `http://host.docker.internal:17080` (Docker Desktop). Unter Linux ohne Docker Desktop braucht der Container dafür einen Eintrag `host.docker.internal:host-gateway`.

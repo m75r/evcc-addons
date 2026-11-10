@@ -92,6 +92,8 @@ export interface E2eOptions {
   extra?: E2eWebServer[];
   /** Listing-URL des Katalogs (`catalogUrl` des Proxys); Standard: unerreichbar, kein Zugriff auf GitHub */
   catalogUrl?: string;
+  /** Release-API der Plattform (`releaseUrl` des Proxys); Standard: unerreichbar, kein Zugriff auf GitHub */
+  releaseUrl?: string;
 }
 
 function stringEnv(): Record<string, string> {
@@ -127,6 +129,7 @@ function proxyServer(opts: E2eOptions): E2eWebServer {
     EVCC_ADDONS_TEST_ZIPS: JSON.stringify(opts.zips ?? []),
     ...(opts.prepare ? { EVCC_ADDONS_TEST_PREPARE: opts.prepare } : {}),
     ...(opts.catalogUrl ? { EVCC_ADDONS_TEST_CATALOG_URL: opts.catalogUrl } : {}),
+    ...(opts.releaseUrl ? { EVCC_ADDONS_TEST_RELEASE_URL: opts.releaseUrl } : {}),
   };
   return {
     command: `node "${script}"`,

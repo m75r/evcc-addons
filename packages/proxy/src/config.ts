@@ -15,6 +15,8 @@ export interface ProxyConfig {
   logLevel: LogLevel;
   /** Listing des Katalogs (GitHub-Contents-API auf das Verzeichnis addons/) */
   catalogUrl: string;
+  /** Release-API der Plattform (GitHub releases/latest) */
+  releaseUrl: string;
 }
 
 export class ConfigError extends Error {
@@ -33,6 +35,7 @@ export const DEFAULT_CONFIG: Omit<ProxyConfig, "publicDir"> = {
   maxUploadBytes: 10 * 1024 * 1024,
   logLevel: "info",
   catalogUrl: "https://api.github.com/repos/m75r/evcc-addons/contents/addons?ref=main",
+  releaseUrl: "https://api.github.com/repos/m75r/evcc-addons/releases/latest",
 };
 
 /** Liest die Konfigurationsdatei, ergänzt Defaults und prüft alle Werte */
@@ -78,6 +81,7 @@ export function buildConfig(raw: Record<string, unknown>, baseDir: string): Prox
     ),
     logLevel: logLevelField(raw.logLevel ?? DEFAULT_CONFIG.logLevel),
     catalogUrl: urlField("catalogUrl", raw.catalogUrl ?? DEFAULT_CONFIG.catalogUrl),
+    releaseUrl: urlField("releaseUrl", raw.releaseUrl ?? DEFAULT_CONFIG.releaseUrl),
   };
   return config;
 }

@@ -25,7 +25,15 @@ evcc ──HTTP──► /addons-api/ext/switches-tapo/<id>/<token>/… ──�
 
 evcc-addons ──HTTPS──► GitHub (nur auf Anforderung eines Admins)
                        ├─ api.github.com, raw.githubusercontent.com   Katalog addons/*.yaml
+                       ├─ api.github.com/…/releases/latest            neueste Version von evcc-addons
                        └─ github.com/…/releases/download/…            ZIP der Katalogeinträge
+
+Update von evcc-addons aus dem Browser:
+evcc-addons ──► /var/lib/evcc-addons/update/request.json  { id, version }
+                 └─► evcc-addons-update.path ──► evcc-addons-update.service (root, updater.mjs)
+                      ├─ api.github.com/…/releases/latest, github.com/…/releases/download/…  .deb + sha256
+                      ├─ apt-get install ./evcc-addons_<version>_all.deb  (startet evcc-addons neu)
+                      └─ /var/lib/evcc-addons-update/status.json  ◄── liest evcc-addons für den Fortschritt
 ```
 
 ## Installation auf dem Raspberry Pi
@@ -50,10 +58,12 @@ sudo apt install ./evcc-addons_<version>_all.deb
 
 Danach läuft der Dienst `evcc-addons` und evcc ist mit Addons unter `http://<pi>/` erreichbar.
 
-- Programm: `/opt/evcc-addons/` (Server und Loader; Addons gehören nicht zum Paket)
+- Programm: `/opt/evcc-addons/` (Server `server.mjs`, Updater `updater.mjs` und Loader; Addons gehören nicht zum Paket)
 - Konfiguration: `/etc/evcc-addons/config.json`
-- Daten (installierte Addons, Zustand, Daten der Addons unter `addon-data/<id>/`): `/var/lib/evcc-addons/`
+- Daten (installierte Addons, Zustand, Daten der Addons unter `addon-data/<id>/`, Update-Anforderung unter `update/`): `/var/lib/evcc-addons/`
+- Status des Updaters: `/var/lib/evcc-addons-update/` (gehört root)
 - Dienst: `evcc-addons.service`, User `evcc-addons`
+- Updater: `evcc-addons-update.path` startet bei Bedarf `evcc-addons-update.service` (root)
 
 ### Konfiguration
 
@@ -78,6 +88,14 @@ https://api.github.com/repos/m75r/evcc-addons/contents/addons?ref=main
 ```
 
 Für einen eigenen Katalog die URL auf einen Fork oder einen anderen Branch setzen, z. B. `https://api.github.com/repos/<owner>/<repo>/contents/addons?ref=<branch>`. Der Proxy hält den Katalog 10 Minuten im Speicher.
+
+`releaseUrl` legt fest, wo die Seite „Addons“ nach einer neuen Version von evcc-addons sucht. Standard ist das neueste Release dieses Repos über die GitHub-Release-API:
+
+```
+https://api.github.com/repos/m75r/evcc-addons/releases/latest
+```
+
+Für einen Fork `https://api.github.com/repos/<owner>/<repo>/releases/latest` eintragen. Drafts und Pre-Releases liefert `latest` nicht. Der Proxy hält das Ergebnis 1 Stunde im Speicher, einen Fehler 5 Minuten; „Jetzt prüfen“ im Popup fragt sofort neu.
 
 **Port 80 belegt?** `listen.port` z. B. auf `7080` setzen und den Dienst neu starten:
 
@@ -109,13 +127,21 @@ journalctl -u evcc-addons -f
 
 ### Update
 
-Neues Paket per `sudo apt install ./evcc-addons_<neu>_all.deb` installieren. Konfiguration und installierte Addons bleiben erhalten, der Dienst startet neu.
+Im Browser (ab Version 2.2.0): „Mehr“ → „Addons“, als Admin auf das Badge „Update verfügbar“ oder die Versionsnummer klicken und im Popup „Aktualisieren“ drücken (Ablauf unter [Addons verwalten](#addons-verwalten)). Das erste Update auf 2.2.0 ist einmalig manuell, weil erst dieses Paket den Updater mitbringt.
+
+Manuell wie bisher: neues Paket per `sudo apt install ./evcc-addons_<neu>_all.deb` installieren. Konfiguration und installierte Addons bleiben erhalten, der Dienst startet neu.
+
+Ändert ein neues Release die Abhängigkeiten (z. B. eine neuere Node-Version), bricht das Update im Browser ab, ohne etwas zu ändern. Dann manuell per `sudo apt install` aktualisieren. Was der Updater getan hat, steht im Journal:
+
+```sh
+journalctl -u evcc-addons-update
+```
 
 ### Rückbau
 
 ```sh
-sudo apt remove evcc-addons   # Dienst und Programm weg, Addons in /var/lib/evcc-addons bleiben
-sudo apt purge evcc-addons    # zusätzlich Konfiguration und Addons löschen
+sudo apt remove evcc-addons   # Dienst, Updater (evcc-addons-update.path) und Programm weg, Addons in /var/lib/evcc-addons bleiben
+sudo apt purge evcc-addons    # zusätzlich Konfiguration, Addons und /var/lib/evcc-addons-update löschen
 ```
 
 evcc selbst ist davon nie betroffen und läuft unter `:7070` normal weiter.
@@ -136,13 +162,18 @@ Der Katalog im Modal „Addon hinzufügen“ braucht Internetzugang des Pi. Ohne
 - Addons mit Server-Teil (z. B. „Tapo-Steckdosen“) laufen zusätzlich im Proxy mit den Rechten des Dienst-Users `evcc-addons`.
 - Installieren, Umschalten, Einstellungen ändern und Deinstallieren erfordern den evcc-Admin-Login. Geprüft wird serverseitig über `api/auth/status` von evcc.
 - Ist die Authentifizierung in evcc deaktiviert, ist auch die Addon-Verwaltung offen.
-- Der Proxy greift nur auf Anforderung eines Admins ins Internet zu: `api.github.com` (Liste des Katalogs), `raw.githubusercontent.com` (Katalogeinträge) und die Release-Downloads der Katalogeinträge. Die Downloads leiten auf `*.githubusercontent.com` weiter; das ist für Allow-Lists in Firewalls wichtig.
+- Der Proxy greift nur auf Anforderung eines Admins ins Internet zu: `api.github.com` (Liste des Katalogs und neuestes Release von evcc-addons), `raw.githubusercontent.com` (Katalogeinträge) und die Release-Downloads der Katalogeinträge. Das neueste Release fragt er ab, wenn ein angemeldeter Admin die Seite „Addons“ öffnet (höchstens einmal pro Stunde); ohne Login fragt er nie. Die Downloads leiten auf `*.githubusercontent.com` weiter; das ist für Allow-Lists in Firewalls wichtig.
 - Der Proxy lädt nur URLs aus dem Katalog, nie eine URL, die der Browser mitschickt. Jede ZIP wird vor der Installation per sha256 gegen den Katalogeintrag geprüft.
+- Das Update von evcc-addons selbst installiert ein eigener Dienst als root (`evcc-addons-update`), der Proxy behält seine Sandbox. Der Proxy übergibt nur die gewünschte Versionsnummer. Der Updater lädt selbst und prüft: Die Version ist die von `releases/latest` aus `releaseUrl` und neuer als das installierte Paket, die sha256 des `.deb` stimmt mit dem `digest` des Release-Assets überein, Paketname und Version im `.deb` stimmen, und `apt` würde kein anderes Paket ändern. Die Anforderungsdatei liest er ohne Symlinks zu folgen.
 - Ohne Internetzugang bleibt die Installation aus einer ZIP-Datei.
 
 ## Addons verwalten
 
 Die Seite „Addons“ (Menü „Mehr“ → „Addons“, `#/addons`) listet alle installierten Addons mit Version, Beschreibung, Aktiv-Zustand und eventuellen Startfehlern. Neben dem Titel steht in Grau die laufende Version von evcc-addons (z. B. „Addons v1.0.0“). Lesen ist ohne Anmeldung möglich, Ändern nur mit dem Admin-Login von evcc.
+
+- **Update von evcc-addons:** Angemeldete Admins sehen neben der Version das Badge „Update verfügbar“, sobald es auf GitHub ein neueres Release gibt (`releaseUrl`). Badge und Versionsnummer öffnen das Popup „evcc-addons aktualisieren“ mit installierter und verfügbarer Version, Veröffentlichungsdatum und dem Link „Versionshinweise auf GitHub“. „Jetzt prüfen“ fragt GitHub sofort neu. Ohne neuere Version meldet das Popup „evcc-addons ist aktuell“, bei einem Fehler (z. B. Abruflimit von GitHub, kein Internet) „Prüfung fehlgeschlagen: …“ und zeigt kein Badge. Wo die automatische Installation nicht verfügbar ist, zeigt das Popup den Link „Paket herunterladen“ und den Befehl `sudo apt install ./evcc-addons_<version>_all.deb` für den Pi.
+
+  Mit dem Debian-Paket zeigt das Popup stattdessen „Aktualisieren“. Ein Klick startet die Installation über den Updater des Pakets. Das Popup zeigt nacheinander „Aktualisierung wird gestartet …“, „v<version> wird heruntergeladen …“, „v<version> wird installiert …“ und „Dienst startet neu …“; solange lässt es sich nicht schließen. Sobald die neue Version läuft, lädt die Seite neu. Scheitert das Update (z. B. falsche Prüfsumme, geänderte Abhängigkeiten) oder dauert es länger als 5 Minuten, nennt das Popup den Grund und verweist auf `journalctl -u evcc-addons-update`; die bisherige Version läuft dann weiter.
 
 - **Anmelden:** Ohne Login zeigt die Seite das Feld „Zum Verwalten anmelden“. Das Passwort ist das evcc-Admin-Passwort. Die Anmeldung gilt danach auch in evcc selbst (Menü „Mehr“ zeigt „Abmelden“), und „Abmelden“ in evcc beendet auch die Verwaltung. Der Proxy speichert kein Passwort, er fragt für jede Änderung `api/auth/status` bei evcc ab.
 - **Installieren:** „+ Neu“ rechts neben dem Titel öffnet das Modal „Addon hinzufügen“ mit dem Katalog (siehe [Addons](#addons)). Jeder Eintrag zeigt Name, Version und Beschreibung:

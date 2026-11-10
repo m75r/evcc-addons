@@ -16,16 +16,21 @@ export interface TestProxyOptions {
   zips?: string[];
   /** `catalogUrl` des Proxys, Standard `UNREACHABLE_CATALOG_URL` */
   catalogUrl?: string;
+  /** `releaseUrl` des Proxys, Standard `UNREACHABLE_RELEASE_URL` */
+  releaseUrl?: string;
 }
 
 export interface TestConfigOptions {
   /** Dateiname unter e2e/.build, Standard `proxy.config.json` */
   file?: string;
   catalogUrl?: string;
+  releaseUrl?: string;
 }
 
 /** Ohne eigenen Katalog: Port 9 (discard) ist lokal nicht belegt, Tests greifen nie auf GitHub zu */
 export const UNREACHABLE_CATALOG_URL = "http://127.0.0.1:9/catalog";
+/** Ohne eigenes Release: die Seite „Addons“ zeigt Admins einen Prüffehler statt eines Badges */
+export const UNREACHABLE_RELEASE_URL = "http://127.0.0.1:9/release";
 
 export interface RuntimePaths {
   server: string;
@@ -53,6 +58,7 @@ export function dataDirOf(root: string): string {
 /** Schreibt e2e/.build/<file> (Standard proxy.config.json) und liefert den Pfad */
 export function writeTestConfig(root: string, opts: TestConfigOptions = {}): string {
   const { file = "proxy.config.json", catalogUrl = UNREACHABLE_CATALOG_URL } = opts;
+  const { releaseUrl = UNREACHABLE_RELEASE_URL } = opts;
   const path = join(root, "e2e/.build", file);
   const config = {
     listen: { host: "127.0.0.1", port: PROXY_PORT },
@@ -61,6 +67,7 @@ export function writeTestConfig(root: string, opts: TestConfigOptions = {}): str
     publicDir: runtimePaths().publicDir,
     logLevel: "info",
     catalogUrl,
+    releaseUrl,
   };
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, JSON.stringify(config, null, 2) + "\n");
@@ -104,7 +111,8 @@ export function startTestProxy(opts: TestProxyOptions): ChildProcess {
   rmSync(dataDirOf(opts.root), { recursive: true, force: true });
   mkdirSync(dataDirOf(opts.root), { recursive: true });
   resetAddons(opts);
-  const config = writeTestConfig(opts.root, { catalogUrl: opts.catalogUrl });
+  const { catalogUrl, releaseUrl } = opts;
+  const config = writeTestConfig(opts.root, { catalogUrl, releaseUrl });
   const child = spawn(process.execPath, [runtimePaths().server, "--config", config], {
     stdio: "inherit",
   });

@@ -8,6 +8,7 @@ import {
   type InstallResponse,
   type ManagerClient,
 } from "../src/addons-client.js";
+import { UP_TO_DATE } from "./platform-fixtures.js";
 import { CatalogModal } from "../src/manager/CatalogModal.js";
 
 const ADDON: AddonInfo = {
@@ -95,6 +96,9 @@ function fakeClient(overrides: Partial<ManagerClient> = {}): ManagerClient {
     saveAddonSettings: vi.fn(() => Promise.resolve(ADDON)),
     uninstallAddon: vi.fn(() => Promise.resolve()),
     login: vi.fn(() => Promise.resolve()),
+    getPlatform: vi.fn(() => Promise.resolve(UP_TO_DATE)),
+    getHealth: vi.fn(() => Promise.resolve({ status: "ok", version: "2.1.0" })),
+    startPlatformUpdate: vi.fn(() => Promise.resolve({ id: "0123456789abcdef" })),
     ...overrides,
   };
 }

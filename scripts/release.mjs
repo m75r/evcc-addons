@@ -25,6 +25,7 @@ async function stageFiles() {
   await rm(join(root, "dist/package"), { recursive: true, force: true });
   await mkdir(join(stage, "public"), { recursive: true });
   await copyFile(join(root, "packages/proxy/dist/server.mjs"), join(stage, "server.mjs"));
+  await copyFile(join(root, "packages/proxy/dist/updater.mjs"), join(stage, "updater.mjs"));
   await copyFile(join(root, "packages/loader/dist/loader.js"), join(stage, "public/loader.js"));
 }
 

@@ -62,11 +62,21 @@ export async function downloadZip(
 }
 
 function verifyChecksum(entry: CatalogEntry, bytes: Uint8Array): void {
+  verifySha256(bytes, entry.sha256, `${entry.id} ${entry.version}`, { id: entry.id });
+}
+
+/** Wirft `checksum-mismatch`, wenn die sha256 (hex) von `bytes` nicht `expected` ist */
+export function verifySha256(
+  bytes: Uint8Array,
+  expected: string,
+  label: string,
+  details: Record<string, string> = {},
+): void {
   const actual = createHash("sha256").update(bytes).digest("hex");
-  if (actual === entry.sha256) return;
+  if (actual === expected) return;
   throw new AddonError(
     "checksum-mismatch",
-    `Prüfsumme von ${entry.id} ${entry.version} stimmt nicht (erwartet ${entry.sha256}, erhalten ${actual})`,
-    { id: entry.id },
+    `Prüfsumme von ${label} stimmt nicht (erwartet ${expected}, erhalten ${actual})`,
+    details,
   );
 }

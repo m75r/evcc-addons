@@ -1,0 +1,14 @@
+# Root-Updater: installiert eine vom Proxy angeforderte Version (gestartet von evcc-addons-update.path)
+[Unit]
+Description=evcc addons self-update
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/node /opt/evcc-addons/updater.mjs --config /etc/evcc-addons/config.json
+StateDirectory=evcc-addons-update
+StateDirectoryMode=0755
+PrivateTmp=true
+TimeoutStartSec=15min
+Environment=NODE_ENV=production

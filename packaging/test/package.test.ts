@@ -42,12 +42,15 @@ describe("Paket-Metadaten", () => {
     expect(fields).toContain(`Version: ${VERSION}`);
   });
 
-  it("enthält Server, Loader, Unit, Konfiguration und Lizenzen, aber keine Addons", () => {
+  it("enthält Server, Updater, Loader, Units, Konfiguration und Lizenzen, aber keine Addons", () => {
     const listing = inContainer("debian:bookworm-slim", `dpkg-deb -c /pkg/${DEB}`);
     for (const path of [
       "./opt/evcc-addons/server.mjs",
+      "./opt/evcc-addons/updater.mjs",
       "./opt/evcc-addons/public/loader.js",
       "./usr/lib/systemd/system/evcc-addons.service",
+      "./usr/lib/systemd/system/evcc-addons-update.service",
+      "./usr/lib/systemd/system/evcc-addons-update.path",
       "./etc/evcc-addons/config.json",
       "./usr/share/doc/evcc-addons/LICENSE",
       "./usr/share/doc/evcc-addons/THIRD_PARTY_NOTICES.md",
@@ -82,6 +85,26 @@ describe("Installation (node:22-bookworm-slim)", () => {
     expect(output).toContain("purged=yes");
   });
 });
+
+describe("systemd-Units (node:22-bookworm-slim)", () => {
+  it("bestehen systemd-analyze verify", () => {
+    const units = ["evcc-addons.service", "evcc-addons-update.service", "evcc-addons-update.path"];
+    const output = inContainer("node:22-bookworm-slim", VERIFY_UNITS(units));
+    expect(output).toContain("verify=0");
+  });
+});
+
+/** systemd nur für systemd-analyze; /usr/bin/node wie beim nodejs-Paket */
+const VERIFY_UNITS = (units: string[]) => `
+set -e
+apt-get update > /dev/null
+apt-get install -y --no-install-recommends systemd > /dev/null 2>&1
+ln -sf /usr/local/bin/node /usr/bin/node
+dpkg -i --force-depends /pkg/${DEB} > /dev/null
+set +e
+systemd-analyze verify ${units.map((unit) => `/usr/lib/systemd/system/${unit}`).join(" ")} 2>&1
+echo "verify=$?"
+`;
 
 describe("SDK-Tarball", () => {
   it("enthält CLI, Typen, Test-Helfer und runtime/ dieser Version", () => {

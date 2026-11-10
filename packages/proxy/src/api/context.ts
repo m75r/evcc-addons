@@ -6,6 +6,7 @@ import type { StatusRegistry } from "../addons/status.js";
 import type { CatalogSource } from "../catalog/source.js";
 import type { ProxyConfig } from "../config.js";
 import type { Logger } from "../logger.js";
+import type { PlatformService } from "../platform/service.js";
 
 export interface ApiContext {
   config: ProxyConfig;
@@ -14,6 +15,7 @@ export interface ApiContext {
   logger: Logger;
   serverAddons: ServerAddonHost;
   catalog: CatalogSource;
+  platform: PlatformService;
 }
 
 export type Handler = (

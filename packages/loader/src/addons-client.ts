@@ -127,6 +127,60 @@ export async function installFromCatalog(id: string): Promise<InstallResponse> {
   return (await res.json()) as InstallResponse;
 }
 
+/** Status des Root-Updaters zu einem Lauf (`id` aus startPlatformUpdate) */
+export interface UpdateStatus {
+  id: string;
+  state: "downloading" | "installing" | "done" | "failed";
+  version: string;
+  message?: string;
+  at: string;
+}
+
+/** Stand der Plattform gegenüber dem neuesten Release (GET /addons-api/platform, nur Admins) */
+export interface PlatformInfo {
+  current: string;
+  latest: {
+    version: string;
+    publishedAt: string;
+    notesUrl: string;
+    /** .deb des Releases, null ohne Prüfsumme */
+    downloadUrl: string | null;
+  } | null;
+  updateAvailable: boolean;
+  /** Installation über den Root-Updater des Debian-Pakets möglich */
+  canInstall: boolean;
+  /** Abruf bei GitHub fehlgeschlagen */
+  checkError: { code: string; message: string } | null;
+  /** Letzter Status des Updaters, null ohne Lauf */
+  update: UpdateStatus | null;
+}
+
+export interface Health {
+  status: string;
+  version: string;
+}
+
+/** `refresh` umgeht den Cache des Proxys */
+export async function getPlatform(refresh = false): Promise<PlatformInfo> {
+  const res = await request(refresh ? "platform?refresh=1" : "platform");
+  return (await res.json()) as PlatformInfo;
+}
+
+/** Legt die Anforderung für den Root-Updater ab; der Fortschritt kommt über getPlatform */
+export async function startPlatformUpdate(version: string): Promise<{ id: string }> {
+  const res = await request("platform/update", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ version }),
+  });
+  return (await res.json()) as { id: string };
+}
+
+export async function getHealth(): Promise<Health> {
+  const res = await request("health");
+  return (await res.json()) as Health;
+}
+
 export async function setAddonEnabled(id: string, enabled: boolean): Promise<AddonInfo> {
   const res = await request(`addons/${encodeURIComponent(id)}`, {
     method: "PATCH",
@@ -176,6 +230,9 @@ export interface ManagerClient {
   saveAddonSettings: (id: string, values: SettingValues) => Promise<AddonInfo>;
   uninstallAddon: (id: string) => Promise<void>;
   login: (password: string) => Promise<void>;
+  getPlatform: (refresh?: boolean) => Promise<PlatformInfo>;
+  getHealth: () => Promise<Health>;
+  startPlatformUpdate: (version: string) => Promise<{ id: string }>;
 }
 
 export const managerClient: ManagerClient = {
@@ -188,4 +245,7 @@ export const managerClient: ManagerClient = {
   saveAddonSettings,
   uninstallAddon,
   login,
+  getPlatform,
+  getHealth,
+  startPlatformUpdate,
 };

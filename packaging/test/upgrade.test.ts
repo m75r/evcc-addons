@@ -1,44 +1,18 @@
 // Upgrade 1.2.1 → aktuelle Version im Debian-Container: Übernahme von switches.json nach
 // addon-data/switches-tapo/ und ein installiertes consumers 1.1.0 (apiVersion 1) läuft weiter.
-// Das Paket 1.2.1 entsteht einmalig aus dem Tag 1.2.1 (git worktree) und liegt dann in dist/legacy/.
+// Das Paket 1.2.1 kommt aus legacy.ts (einmalig gebaut, dann in dist/legacy/).
 import { execFileSync } from "node:child_process";
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { resolve } from "node:path";
 import { beforeAll, describe, expect, it } from "vitest";
-
-const ROOT = resolve(import.meta.dirname, "../..");
-const VERSION = (
-  JSON.parse(readFileSync(resolve(ROOT, "package.json"), "utf8")) as { version: string }
-).version;
-const LEGACY_VERSION = "1.2.1";
-const LEGACY_DIR = resolve(ROOT, "dist/legacy");
-const LEGACY_DEB = `evcc-addons_${LEGACY_VERSION}_all.deb`;
-const BUILD_TIMEOUT_MS = 900_000;
-
-function run(command: string, args: string[], cwd: string): void {
-  try {
-    execFileSync(command, args, { cwd, stdio: ["ignore", "ignore", "pipe"] });
-  } catch (err) {
-    const stderr = (err as { stderr?: Buffer }).stderr?.toString("utf8") ?? "";
-    throw new Error(`${command} ${args.join(" ")} fehlgeschlagen:\n${stderr}`, { cause: err });
-  }
-}
-
-/** Baut das Paket des Tags 1.2.1 in einem temporären worktree, falls es noch nicht vorliegt */
-function buildLegacyDeb(): void {
-  if (existsSync(join(LEGACY_DIR, LEGACY_DEB))) return;
-  const worktree = join(mkdtempSync(join(tmpdir(), "evcc-addons-legacy-")), "repo");
-  run("git", ["worktree", "add", "--detach", worktree, LEGACY_VERSION], ROOT);
-  try {
-    run("npm", ["ci", "--no-audit", "--no-fund"], worktree);
-    run("npm", ["run", "package"], worktree);
-    mkdirSync(LEGACY_DIR, { recursive: true });
-    copyFileSync(join(worktree, "dist", LEGACY_DEB), join(LEGACY_DIR, LEGACY_DEB));
-  } finally {
-    run("git", ["worktree", "remove", "--force", worktree], ROOT);
-  }
-}
+import {
+  BUILD_TIMEOUT_MS,
+  LEGACY_DEB,
+  LEGACY_DIR,
+  LEGACY_VERSION,
+  ROOT,
+  VERSION,
+  buildLegacyDeb,
+} from "./legacy.js";
 
 function inContainer(script: string): string {
   const mounts = ["-v", `${resolve(ROOT, "dist")}:/pkg:ro`, "-v", `${LEGACY_DIR}:/legacy:ro`];

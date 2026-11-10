@@ -25,6 +25,11 @@ contents:
     dst: /usr/share/doc/evcc-addons/THIRD_PARTY_NOTICES.md
   - src: packaging/evcc-addons.service
     dst: /usr/lib/systemd/system/evcc-addons.service
+  # Root-Updater für Updates aus der Oberfläche (Path-Unit überwacht die Anforderung des Proxys)
+  - src: packaging/evcc-addons-update.service
+    dst: /usr/lib/systemd/system/evcc-addons-update.service
+  - src: packaging/evcc-addons-update.path
+    dst: /usr/lib/systemd/system/evcc-addons-update.path
   - src: packaging/config.json
     dst: /etc/evcc-addons/config.json
     type: config|noreplace

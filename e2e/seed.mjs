@@ -2,7 +2,7 @@
 import { strToU8, zipSync } from "fflate";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -12,6 +12,8 @@ const out = resolve(root, "e2e/.build");
 const catalogDir = resolve(out, "catalog");
 /** Basis-URL von e2e/fake-catalog.mjs */
 const CATALOG_BASE = "http://127.0.0.1:17095";
+/** Release, das der Fake unter /releases/latest liefert: deutlich neuer als jede echte Version */
+export const SEED_RELEASE_TAG = "v99.0.0";
 const FIXTURES = [
   "test-addon",
   "broken-addon",
@@ -39,7 +41,33 @@ export function buildFixtures() {
   for (const name of FIXTURES) buildFixture(name);
   buildFixture("test-addon", "--version", "0.2.0");
   writeZipSlipFixture(resolve(out, "zip-slip.zip"));
+  // Nach dem Katalog, der catalogDir leert
   writeCatalogFixture();
+  writeRelease(SEED_RELEASE_TAG);
+}
+
+/**
+ * Schreibt release.json für /releases/latest wie GitHub (URLs auf den Fake, daher http);
+ * `null` entfernt die Datei, der Fake antwortet dann mit 404
+ */
+export function writeRelease(tag) {
+  const file = resolve(catalogDir, "release.json");
+  if (tag === null) return void (existsSync(file) && rmSync(file));
+  const name = `evcc-addons_${tag.replace(/^v/, "")}_all.deb`;
+  const release = {
+    tag_name: tag,
+    published_at: "2026-11-12T10:00:00Z",
+    html_url: `${CATALOG_BASE}/files/notes-${tag}.html`,
+    assets: [
+      {
+        name,
+        browser_download_url: `${CATALOG_BASE}/files/${name}`,
+        digest: `sha256:${"0".repeat(64)}`,
+      },
+    ],
+  };
+  mkdirSync(catalogDir, { recursive: true });
+  writeFileSync(file, JSON.stringify(release, null, 2) + "\n");
 }
 
 /**

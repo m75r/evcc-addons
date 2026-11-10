@@ -179,6 +179,75 @@ export const MESSAGES = {
     de: "Kein Downgrade über den Katalog: {message}",
     en: "No downgrade via the catalog: {message}",
   },
+  "platform.badge": { de: "Update verfügbar", en: "Update available" },
+  "platform.title": { de: "evcc-addons aktualisieren", en: "Update evcc-addons" },
+  "platform.installed": { de: "Installiert", en: "Installed" },
+  "platform.available": { de: "Verfügbar", en: "Available" },
+  "platform.published": { de: "veröffentlicht am {date}", en: "published on {date}" },
+  "platform.notes": { de: "Versionshinweise auf GitHub", en: "Release notes on GitHub" },
+  "platform.upToDate": {
+    de: "evcc-addons ist aktuell (v{version}).",
+    en: "evcc-addons is up to date (v{version}).",
+  },
+  "platform.check": { de: "Jetzt prüfen", en: "Check now" },
+  "platform.checking": { de: "Wird geprüft …", en: "Checking …" },
+  "platform.checkError": {
+    de: "Prüfung fehlgeschlagen: {message}",
+    en: "Check failed: {message}",
+  },
+  "platform.manual": {
+    de: "Automatische Installation ist hier nicht verfügbar.",
+    en: "Automatic installation is not available here.",
+  },
+  "platform.download": { de: "Paket herunterladen", en: "Download package" },
+  "platform.manualCommand": { de: "und auf dem Pi installieren:", en: "and install it on the Pi:" },
+  "platform.versionLabel": {
+    de: "Version von evcc-addons prüfen",
+    en: "Check evcc-addons version",
+  },
+  "platform.update": { de: "Aktualisieren", en: "Update" },
+  "platform.restartHint": {
+    de: "Der Dienst startet während der Installation neu, die Seite lädt danach automatisch neu.",
+    en: "The service restarts during installation, the page reloads automatically afterwards.",
+  },
+  "platform.phase.starting": { de: "Aktualisierung wird gestartet …", en: "Starting update …" },
+  "platform.phase.downloading": {
+    de: "v{version} wird heruntergeladen …",
+    en: "Downloading v{version} …",
+  },
+  "platform.phase.installing": {
+    de: "v{version} wird installiert …",
+    en: "Installing v{version} …",
+  },
+  "platform.phase.restarting": { de: "Dienst startet neu …", en: "Service restarting …" },
+  "platform.failed": {
+    de: "Aktualisierung fehlgeschlagen: {message}",
+    en: "Update failed: {message}",
+  },
+  "platform.timeout": {
+    de: "Die Aktualisierung dauert ungewöhnlich lange.",
+    en: "The update is taking unusually long.",
+  },
+  "platform.journal": {
+    de: "Details: journalctl -u evcc-addons-update",
+    en: "Details: journalctl -u evcc-addons-update",
+  },
+  "error.update-unavailable": {
+    de: "Kein Update möglich: {message}",
+    en: "No update possible: {message}",
+  },
+  "error.update-running": {
+    de: "Es läuft bereits eine Aktualisierung.",
+    en: "An update is already running.",
+  },
+  "error.release-unavailable": {
+    de: "GitHub ist nicht erreichbar ({message}).",
+    en: "GitHub is unreachable ({message}).",
+  },
+  "error.release-invalid": {
+    de: "Die Antwort von GitHub ist ungültig: {message}",
+    en: "Invalid response from GitHub: {message}",
+  },
 } satisfies Record<string, Record<"de" | "en", string>>;
 
 export type MessageKey = keyof typeof MESSAGES;

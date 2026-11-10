@@ -22,7 +22,20 @@ describe("loadConfig", () => {
       maxUploadBytes: 10485760,
       logLevel: "info",
       catalogUrl: "https://api.github.com/repos/m75r/evcc-addons/contents/addons?ref=main",
+      releaseUrl: "https://api.github.com/repos/m75r/evcc-addons/releases/latest",
     });
+  });
+
+  it("übernimmt eine eigene releaseUrl", async () => {
+    const releaseUrl = "https://api.github.com/repos/me/fork/releases/latest";
+    const config = await loadConfig(await writeConfig({ releaseUrl }));
+    expect(config.releaseUrl).toBe(releaseUrl);
+  });
+
+  it.each(["ftp://pi", "kein-url", 42])("lehnt releaseUrl %s ab", async (releaseUrl) => {
+    const error = await loadConfig(await writeConfig({ releaseUrl })).catch((err: unknown) => err);
+    expect(error).toBeInstanceOf(ConfigError);
+    expect((error as Error).message).toMatch(/^Ungültiger Wert für releaseUrl: /);
   });
 
   it("übernimmt eine eigene catalogUrl mit Query unverändert", async () => {

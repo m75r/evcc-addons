@@ -1,0 +1,10 @@
+# Startet den Root-Updater, sobald der Proxy eine Anforderung ablegt
+[Unit]
+Description=evcc addons self-update request
+
+[Path]
+PathExists=/var/lib/evcc-addons/update/request.json
+Unit=evcc-addons-update.service
+
+[Install]
+WantedBy=multi-user.target

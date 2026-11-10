@@ -6,8 +6,10 @@ import {
   ApiError,
   type AddonInfo,
   type ManagerClient,
+  type PlatformInfo,
   type Session,
 } from "../src/addons-client.js";
+import { UP_TO_DATE, platformInfo } from "./platform-fixtures.js";
 import { ManagerDialogRegistry } from "../src/manager/dialogs.js";
 import { ManagerPage } from "../src/manager/ManagerPage.js";
 
@@ -66,6 +68,9 @@ function fakeClient(session: Session, overrides: Partial<ManagerClient> = {}): M
     ),
     uninstallAddon: vi.fn(() => Promise.resolve()),
     login: vi.fn(() => Promise.resolve()),
+    getPlatform: vi.fn(() => Promise.resolve(UP_TO_DATE)),
+    getHealth: vi.fn(() => Promise.resolve({ status: "ok", version: "2.1.0" })),
+    startPlatformUpdate: vi.fn(() => Promise.resolve({ id: "0123456789abcdef" })),
     ...overrides,
   };
 }
@@ -301,6 +306,112 @@ describe("ManagerPage", () => {
 });
 
 const ADMIN: Session = { canManage: true, reason: null };
+
+describe("ManagerPage: Version und Update der Plattform", () => {
+  const GUEST: Session = { canManage: false, reason: "login-required" };
+
+  /** Die Prüfung startet erst nach der Sitzung, daher länger warten als mount() */
+  async function mountPage(client: ManagerClient) {
+    await mount(client, "2.1.0");
+    await settle();
+  }
+
+  async function settle() {
+    for (let i = 0; i < 3; i++) await act(async () => void (await tick()));
+  }
+
+  async function click(testId: string) {
+    await act(() => q(testId)?.click());
+    await settle();
+  }
+
+  it("fragt ohne Login nicht nach und zeigt die Version als Text ohne Badge", async () => {
+    const client = fakeClient(GUEST, { getPlatform: vi.fn(() => Promise.resolve(platformInfo())) });
+    await mountPage(client);
+    expect(client.getPlatform).not.toHaveBeenCalled();
+    expect(q("addons-version")?.tagName).toBe("SPAN");
+    expect(q("addons-update-badge")).toBeNull();
+  });
+
+  it("zeigt Admins das Badge; Badge und Version öffnen das Popup", async () => {
+    const client = fakeClient(ADMIN, { getPlatform: vi.fn(() => Promise.resolve(platformInfo())) });
+    await mountPage(client);
+    expect(client.getPlatform).toHaveBeenCalledWith(false);
+    expect(q("addons-version")?.tagName).toBe("BUTTON");
+    expect(q("addons-version")?.getAttribute("aria-label")).toBe("Version von evcc-addons prüfen");
+    expect(q("addons-update-badge")?.textContent).toBe("Update verfügbar");
+    await click("addons-update-badge");
+    expect(q("platform-modal")?.querySelector(".modal-title")?.textContent).toBe(
+      "evcc-addons aktualisieren",
+    );
+    await click("platform-close");
+    expect(q("platform-modal")).toBeNull();
+    await click("addons-version");
+    expect(q("platform-modal")).not.toBeNull();
+  });
+
+  it("„Jetzt prüfen“ fragt ohne Cache nach; danach aktuell und ohne Badge", async () => {
+    const getPlatform = vi.fn((refresh?: boolean) =>
+      Promise.resolve(refresh ? UP_TO_DATE : platformInfo()),
+    );
+    await mountPage(fakeClient(ADMIN, { getPlatform }));
+    await click("addons-update-badge");
+    await click("platform-check");
+    expect(getPlatform).toHaveBeenLastCalledWith(true);
+    expect(q("platform-up-to-date")?.textContent).toBe("evcc-addons ist aktuell (v2.1.0).");
+    expect(q("addons-update-badge")).toBeNull();
+  });
+
+  it("zeigt „Wird geprüft …“ und sperrt „Jetzt prüfen“, solange die Prüfung läuft", async () => {
+    let resolve!: (info: PlatformInfo) => void;
+    const getPlatform = vi.fn((refresh?: boolean) =>
+      refresh ? new Promise<PlatformInfo>((r) => (resolve = r)) : Promise.resolve(UP_TO_DATE),
+    );
+    await mountPage(fakeClient(ADMIN, { getPlatform }));
+    await click("addons-version");
+    await act(() => q("platform-check")?.click());
+    expect(q("platform-checking")?.textContent).toBe("Wird geprüft …");
+    expect((q("platform-check") as HTMLButtonElement).disabled).toBe(true);
+    resolve(platformInfo());
+    await settle();
+    expect(q("platform-checking")).toBeNull();
+    expect(q("platform-manual")).not.toBeNull();
+    expect((q("platform-check") as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it("zeigt bei checkError kein Badge, aber den Fehler im Popup", async () => {
+    const checkError = {
+      code: "release-unavailable",
+      message: "HTTP 403 (Abruflimit von GitHub erreicht)",
+    };
+    const info = platformInfo({ latest: null, updateAvailable: false, checkError });
+    await mountPage(fakeClient(ADMIN, { getPlatform: vi.fn(() => Promise.resolve(info)) }));
+    expect(q("addons-update-badge")).toBeNull();
+    await click("addons-version");
+    expect(q("platform-check-error")?.textContent).toBe(
+      "Prüfung fehlgeschlagen: GitHub ist nicht erreichbar (HTTP 403 (Abruflimit von GitHub erreicht)).",
+    );
+  });
+
+  it("zeigt bei 401 das Login-Formular", async () => {
+    const error = new ApiError(401, "login-required", "Bitte anmelden");
+    await mountPage(fakeClient(ADMIN, { getPlatform: vi.fn(() => Promise.reject(error)) }));
+    expect(q("addons-login")).not.toBeNull();
+    expect(q("addons-new")).toBeNull();
+    expect(q("addons-version")?.tagName).toBe("SPAN");
+  });
+
+  it("zeigt bei einem Netzwerkfehler kein Badge; das Popup nennt den Fehler", async () => {
+    const error = new ApiError(0, "network", "Addon-Proxy nicht erreichbar: Failed to fetch");
+    await mountPage(fakeClient(ADMIN, { getPlatform: vi.fn(() => Promise.reject(error)) }));
+    expect(q("addons-update-badge")).toBeNull();
+    expect(q("addons-login")).toBeNull();
+    await click("addons-version");
+    expect(q("platform-check-error")?.textContent).toBe(
+      "Prüfung fehlgeschlagen: Addon-Proxy nicht erreichbar: Failed to fetch",
+    );
+  });
+});
 
 function settingsClient(session: Session = ADMIN, overrides: Partial<ManagerClient> = {}) {
   return fakeClient(session, {

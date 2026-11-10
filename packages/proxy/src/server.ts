@@ -17,6 +17,8 @@ import type { ProxyConfig } from "./config.js";
 import { sendError } from "./http/json.js";
 import { redactPath } from "./http/redact.js";
 import type { Logger } from "./logger.js";
+import { platformRoutes } from "./platform/api.js";
+import { PlatformService, defaultPlatformPaths } from "./platform/service.js";
 import { forwardRequest } from "./proxy/forward.js";
 import { injectLoader, isIndexRequest, loaderTag } from "./proxy/inject.js";
 import { UpgradeTracker, forwardUpgrade } from "./proxy/websocket.js";
@@ -29,6 +31,7 @@ export interface ProxyDeps {
   status?: StatusRegistry;
   store?: AddonStore;
   catalog?: CatalogSource;
+  platform?: PlatformService;
 }
 
 export interface ProxyServer {
@@ -53,7 +56,10 @@ export function createProxyServer(config: ProxyConfig, deps: ProxyDeps): ProxySe
     logger: deps.logger,
     target,
     api,
-    router: createApiRouter([...readRoutes, ...writeRoutes, ...catalogRoutes, ...extRoutes], api),
+    router: createApiRouter(
+      [...readRoutes, ...writeRoutes, ...catalogRoutes, ...platformRoutes, ...extRoutes],
+      api,
+    ),
   };
   const server = http.createServer((req, res) => {
     logRequest(req, res, deps.logger);
@@ -96,7 +102,18 @@ function createApiContext(config: ProxyConfig, deps: ProxyDeps): ApiContext {
   });
   const catalog =
     deps.catalog ?? new CatalogSource({ url: config.catalogUrl, logger: deps.logger });
-  return { config, store, status, logger: deps.logger, serverAddons, catalog };
+  const platform = createPlatformService(config, deps);
+  return { config, store, status, logger: deps.logger, serverAddons, catalog, platform };
+}
+
+function createPlatformService(config: ProxyConfig, deps: ProxyDeps): PlatformService {
+  if (deps.platform) return deps.platform;
+  return new PlatformService({
+    releaseUrl: config.releaseUrl,
+    currentVersion: VERSION,
+    logger: deps.logger,
+    paths: defaultPlatformPaths(config.dataDir),
+  });
 }
 
 async function handleRequest(req: IncomingMessage, res: ServerResponse, ctx: RequestContext) {

@@ -1,12 +1,21 @@
 // Seite „Addons“ (#/addons): Sitzung, Installation und Liste der Addons
 import { useCallback, useEffect, useState } from "preact/hooks";
-import type { AddonInfo, ManagerClient, Session, SessionReason } from "../addons-client.js";
+import type {
+  AddonInfo,
+  ManagerClient,
+  PlatformInfo,
+  Session,
+  SessionReason,
+} from "../addons-client.js";
 import { t, type MessageKey } from "../i18n.js";
 import { AddonCard, type AddonActions } from "./AddonCard.js";
 import type { ManagerDialogRegistry } from "./dialogs.js";
 import { CatalogModal } from "./CatalogModal.js";
+import { isUnauthorized } from "./errors.js";
 import { LoginForm } from "./LoginForm.js";
 import { NewButton } from "./NewButton.js";
+import { PlatformModal } from "./PlatformModal.js";
+import { PlatformVersion } from "./PlatformVersion.js";
 import { useLoadable, type Loadable } from "./useLoadable.js";
 
 export interface ManagerPageProps {
@@ -37,6 +46,32 @@ function useSession(client: ManagerClient): [Loadable<Session>, () => void] {
   return [useLoadable(() => client.getSession(), [generation]), refresh];
 }
 
+interface PlatformState {
+  platform: Loadable<PlatformInfo | null>;
+  /** Erstes Laden oder „Jetzt prüfen“ läuft */
+  checking: boolean;
+  refresh: () => void;
+}
+
+/** Update-Prüfung nur mit Admin-Sitzung; 401 führt zum Login-Formular */
+function usePlatform(
+  client: ManagerClient,
+  canManage: boolean,
+  onUnauthorized: () => void,
+): PlatformState {
+  const [generation, setGeneration] = useState(0);
+  const [settled, setSettled] = useState(-1);
+  const platform = useLoadable(() => {
+    if (!canManage) return Promise.resolve(null);
+    const done = () => setSettled((last) => Math.max(last, generation));
+    return client.getPlatform(generation > 0).finally(done);
+  }, [canManage, generation]);
+  const unauthorized = platform.kind === "error" && isUnauthorized(platform.error);
+  useEffect(() => void (unauthorized && onUnauthorized()), [unauthorized]);
+  const refresh = useCallback(() => setGeneration((n) => n + 1), []);
+  return { platform, checking: canManage && settled < generation, refresh };
+}
+
 export function ManagerPage(props: ManagerPageProps) {
   const { locale, client } = props;
   const [session] = useSession(client);
@@ -46,8 +81,10 @@ export function ManagerPage(props: ManagerPageProps) {
     return client.listAddons();
   }, []);
   const [catalogOpen, setCatalogOpen] = useState(false);
+  const [platformOpen, setPlatformOpen] = useState(false);
   const canManage = !forceLogin && session.kind === "ready" && session.value.canManage;
   const showCatalog = canManage && catalogOpen;
+  const platform = usePlatform(client, canManage, () => setForceLogin(true));
   const reason = forceLogin
     ? "login-required"
     : session.kind === "ready"
@@ -67,9 +104,11 @@ export function ManagerPage(props: ManagerPageProps) {
       <PageHeader
         locale={locale}
         version={props.version}
-        showNew={canManage}
+        canManage={canManage}
+        updateAvailable={updateAvailable(platform.platform)}
         newOpen={showCatalog}
         onNew={() => setCatalogOpen(true)}
+        onPlatform={() => setPlatformOpen(true)}
       />
       <p class="text-muted mb-4" data-testid="addons-subtitle">
         {t("addons.subtitle", locale)}
@@ -86,6 +125,18 @@ export function ManagerPage(props: ManagerPageProps) {
           reload={props.reload}
           onUnauthorized={actions.onUnauthorized}
           onClose={() => setCatalogOpen(false)}
+        />
+      )}
+      {canManage && platformOpen && (
+        <PlatformModal
+          locale={locale}
+          platform={platform.platform}
+          checking={platform.checking}
+          onRefresh={platform.refresh}
+          onClose={() => setPlatformOpen(false)}
+          client={client}
+          reload={props.reload}
+          onUnauthorized={actions.onUnauthorized}
         />
       )}
       {reason === "login-required" && (
@@ -108,34 +159,46 @@ export function ManagerPage(props: ManagerPageProps) {
   );
 }
 
+/** Badge nur nach erfolgreicher Prüfung mit neuerer Version */
+function updateAvailable(platform: Loadable<PlatformInfo | null>): boolean {
+  return platform.kind === "ready" && platform.value?.updateAvailable === true;
+}
+
 interface PageHeaderProps {
   locale: string;
   version: string | null;
-  /** Button „+ Neu“ nur mit Admin-Login */
-  showNew: boolean;
+  /** „+ Neu“, Versions-Button und Badge nur mit Admin-Login */
+  canManage: boolean;
+  updateAvailable: boolean;
   newOpen: boolean;
   onNew: () => void;
+  onPlatform: () => void;
 }
 
-function PageHeader({ locale, version, showNew, newOpen, onNew }: PageHeaderProps) {
+function PageHeader(props: PageHeaderProps) {
+  const { locale, version } = props;
   return (
     <header class="d-flex justify-content-between align-items-center gap-3 py-3 py-md-4">
       <div class="title position-relative flex-grow-1 min-w-0 mb-1">
         <h1 class="mb-0 pt-1 text-truncate">
           {t("addons.title", locale)}
           {version && (
-            <span class="text-muted ms-2 evcc-addons-version" data-testid="addons-version">
-              v{version}
-            </span>
+            <PlatformVersion
+              locale={locale}
+              version={version}
+              canManage={props.canManage}
+              updateAvailable={props.updateAvailable}
+              onOpen={props.onPlatform}
+            />
           )}
         </h1>
       </div>
-      {showNew && (
+      {props.canManage && (
         <NewButton
           label={t("manager.new", locale)}
           testId="addons-new"
-          open={newOpen}
-          onClick={onNew}
+          open={props.newOpen}
+          onClick={props.onNew}
         />
       )}
     </header>

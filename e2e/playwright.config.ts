@@ -25,6 +25,8 @@ export default defineConfig({
     prepare: "e2e/seed.mjs",
     // Fake-Katalog aus e2e/.build/catalog (geschrieben von seed.mjs)
     catalogUrl: "http://127.0.0.1:17095/contents/addons",
+    // Release der Plattform aus e2e/.build/catalog/release.json (ebenfalls von seed.mjs)
+    releaseUrl: "http://127.0.0.1:17095/releases/latest",
     extra: [
       {
         command: "node e2e/fake-catalog.mjs",

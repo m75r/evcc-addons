@@ -26,7 +26,11 @@ export type AddonErrorCode =
   | "checksum-mismatch"
   | "catalog-mismatch"
   | "catalog-incompatible"
-  | "downgrade";
+  | "downgrade"
+  | "release-unavailable"
+  | "release-invalid"
+  | "update-unavailable"
+  | "update-running";
 
 const STATUS: Partial<Record<AddonErrorCode, number>> = {
   "not-found": 404,
@@ -43,6 +47,10 @@ const STATUS: Partial<Record<AddonErrorCode, number>> = {
   "download-failed": 502,
   "checksum-mismatch": 502,
   "catalog-mismatch": 502,
+  "release-unavailable": 502,
+  "release-invalid": 502,
+  "update-unavailable": 409,
+  "update-running": 409,
 };
 
 export class AddonError extends Error {

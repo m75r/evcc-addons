@@ -44,6 +44,30 @@ html.evcc-addons-page-route #app > .app {
   vertical-align: middle;
 }
 
+/* Versionsnummer als Button (Admins): Farbe und Größe wie .evcc-addons-version, Unterstreichung nur bei Hover/Fokus */
+.btn.evcc-addons-version-btn {
+  font-size: 0.875rem;
+  line-height: inherit;
+  border: 0;
+  text-decoration: none;
+  vertical-align: middle;
+}
+
+.btn.evcc-addons-version-btn:hover,
+.btn.evcc-addons-version-btn:focus-visible {
+  text-decoration: underline;
+}
+
+/* Badge „Update verfügbar“ hinter der Version, ohne Großschreibung des h1 */
+.evcc-addons-update-badge {
+  font-size: 0.75rem;
+  font-weight: normal;
+  text-transform: none;
+  letter-spacing: normal;
+  vertical-align: middle;
+  cursor: pointer;
+}
+
 /* Button „Neu“ wie evcc Config/NewDeviceButton, ohne dessen Mindesthöhe (steht im Seitenkopf) */
 .evcc-addons-new-btn {
   border-radius: 1rem;
