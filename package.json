@@ -2,7 +2,7 @@
   "name": "evcc-addons",
   "private": true,
   "type": "module",
-  "version": "2.2.0",
+  "version": "2.2.1",
   "description": "Reverse proxy that extends evcc with installable addons",
   "license": "MIT",
   "engines": {
@@ -19,7 +19,8 @@
     "dev": "npm run build && node scripts/dev-seed.mjs && node packages/proxy/dist/server.mjs --config dev/config.json",
     "e2e": "npm run build && playwright test -c e2e",
     "package": "node scripts/release.mjs",
-    "test:package": "npm run package && vitest run -c vitest.package.config.ts"
+    "test:package": "npm run package && vitest run -c vitest.package.config.ts",
+    "release": "node scripts/publish.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

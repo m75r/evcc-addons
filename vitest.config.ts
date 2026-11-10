@@ -1,4 +1,4 @@
-// Vitest-Projekte: SDK und Proxy (Node), Loader (happy-dom)
+// Vitest-Projekte: SDK, Proxy und Skripte (Node), Loader (happy-dom)
 import { defaultClientConditions, defaultServerConditions } from "vite";
 import { defineConfig } from "vitest/config";
 import { cssAsText } from "./packages/sdk/src/vitest.js";
@@ -27,6 +27,14 @@ export default defineConfig({
           root: "packages/proxy",
           environment: "node",
           include: ["test/**/*.test.ts"],
+        },
+      },
+      {
+        test: {
+          name: "scripts",
+          root: "scripts",
+          environment: "node",
+          include: ["test/**/*.test.mjs"],
         },
       },
       {

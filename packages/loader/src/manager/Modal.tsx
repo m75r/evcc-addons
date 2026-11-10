@@ -1,6 +1,6 @@
 // Modal-Rahmen im Markup von evcc GenericModal (ohne Bootstrap-JS): Escape, Backdrop, Fokus
 import type { ComponentChildren, RefObject } from "preact";
-import { useEffect, useRef } from "preact/hooks";
+import { useLayoutEffect, useRef } from "preact/hooks";
 
 export interface ModalProps {
   title: string;
@@ -18,18 +18,39 @@ export interface ModalProps {
   children: ComponentChildren;
 }
 
-/** `body.modal-open` wie Bootstrap, Fokus auf den Dialog */
+/**
+ * `body.modal-open` wie Bootstrap und Fokus auf den Dialog, beides direkt nach dem Einfügen
+ * (useLayoutEffect, nicht erst nach dem nächsten Frame)
+ */
 function useModalEffects(dialog: RefObject<HTMLDivElement | null>): void {
-  useEffect(() => {
+  useLayoutEffect(() => {
     document.body.classList.add("modal-open");
     dialog.current?.focus();
     return () => document.body.classList.remove("modal-open");
   }, []);
 }
 
+/**
+ * Escape schließt wie bei Bootstrap unabhängig vom Fokus (z. B. direkt nach dem Öffnen, solange der
+ * Fokus noch auf dem auslösenden Button liegt). Hat Inhalt das Event schon behandelt
+ * (`preventDefault`), bleibt der Dialog offen.
+ */
+function useEscape(onClose: () => void): void {
+  const latest = useRef(onClose);
+  latest.current = onClose;
+  useLayoutEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !e.defaultPrevented) latest.current();
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, []);
+}
+
 export function Modal(props: ModalProps) {
   const dialog = useRef<HTMLDivElement>(null);
   useModalEffects(dialog);
+  useEscape(props.onClose);
   return (
     <>
       <div
@@ -40,7 +61,6 @@ export function Modal(props: ModalProps) {
         aria-labelledby={props.titleId}
         tabIndex={-1}
         data-testid={props.testId}
-        onKeyDown={(e) => e.key === "Escape" && props.onClose()}
         onClick={(e) => e.target === e.currentTarget && props.onClose()}
       >
         <div

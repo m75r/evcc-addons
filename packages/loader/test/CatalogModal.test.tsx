@@ -234,7 +234,9 @@ describe("CatalogModal", () => {
     const install = deferred<InstallResponse>();
     const props = await mount(fakeClient({ installFromCatalog: () => install.promise }));
     const escape = () =>
-      q("catalog-modal")?.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+      q("catalog-modal")?.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+      );
     await click(q("catalog-close"));
     await act(() => void escape());
     expect(props.onClose).toHaveBeenCalledTimes(2);
