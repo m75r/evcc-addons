@@ -31,10 +31,11 @@ export function assertAddonReposReady(repos) {
 }
 
 /**
- * Testet jedes Addon in einem temporären Worktree gegen den lokalen Tarball (lint, test, e2e).
- * Die Arbeitskopie des Addon-Repos bleibt unberührt.
+ * Testet jedes Addon in einem temporären Worktree gegen den lokalen Tarball (lint, test, ohne
+ * `skipE2e` auch e2e). Die Arbeitskopie des Addon-Repos bleibt unberührt.
  */
-export function testAddonsAgainst(repos, tarball) {
+export function testAddonsAgainst(repos, tarball, { skipE2e = false } = {}) {
+  const scripts = skipE2e ? ["lint", "test"] : ["lint", "test", "e2e"];
   for (const repo of repos) {
     step(`Addon ${repo.name} gegen ${tarball.split("/").at(-1)} testen`);
     const worktree = join(mkdtempSync(join(tmpdir(), `${repo.name}-`)), "repo");
@@ -42,7 +43,7 @@ export function testAddonsAgainst(repos, tarball) {
     try {
       run("npm", ["ci", "--no-audit", "--no-fund"], worktree);
       run("npm", ["install", "--no-save", "--no-audit", "--no-fund", tarball], worktree);
-      for (const script of ["lint", "test", "e2e"]) run("npm", ["run", script], worktree);
+      for (const script of scripts) run("npm", ["run", script], worktree);
     } finally {
       run("git", ["worktree", "remove", "--force", worktree], repo.dir);
     }

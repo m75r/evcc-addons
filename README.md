@@ -250,19 +250,22 @@ Ein Release entsteht in zwei Schritten:
 2. **Veröffentlichen** mit [scripts/publish.mjs](scripts/publish.mjs):
 
 ```sh
-npm run release                              # Prüflauf: nichts wird gepusht
-npm run release -- --with-addons             # zusätzlich alle Addons gegen den neuen SDK-Tarball testen
-npm run release -- --push --with-addons      # veröffentlichen und die Addons auf das neue SDK heben
+bin/release.sh                          # Prüflauf mit allen Tests und Addons: nichts wird gepusht
+bin/release.sh --skip-tests             # schneller Prüflauf ohne E2E-Tests
+bin/release.sh --push                   # veröffentlichen und die Addons auf das neue SDK heben
+bin/release.sh --push --skip-addons     # veröffentlichen, Addon-Repos nicht anfassen
 ```
+
+`bin/release.sh` ruft nur `node scripts/publish.mjs` auf. Gleichwertig ist `npm run release -- <Schalter>` (das `--` reicht die Schalter an das Skript weiter).
 
 Das Skript bricht beim ersten Fehler ab. Vor `--push` geht nichts nach außen.
 
 - **Vorbedingungen:** sauberer Working Tree auf `main`, `gh` angemeldet. Mit `--push` zusätzlich: Tag `X.Y.Z` auf `HEAD`, `origin/main` lokal enthalten, je zu veröffentlichendem Tag ein Abschnitt in RELEASES.md.
-- **Prüfen und bauen:** `lint`, `test`, `e2e` und `test:package`. Letzteres baut `.deb` und SDK-Tarball und prüft beide in Docker.
+- **Prüfen und bauen:** `lint`, `test`, `e2e` und `test:package`. Letzteres baut `.deb` und SDK-Tarball und prüft beide in Docker. `--skip-tests` lässt die E2E-Tests von Plattform und Addons aus; `lint`, `test` und `test:package` laufen immer.
 - **Ältere Tags ohne Release** (neuer als das neueste Release auf GitHub) werden mitveröffentlicht. Ihre Assets entstehen in einem temporären Worktree des Tags unter `dist/release/<tag>/`.
-- **Mit `--with-addons`:** Die Addon-Repos sind die Geschwisterordner aus den `homepage`-Einträgen in [addons/](addons/). Jedes wird in einem temporären Worktree gegen den lokalen Tarball getestet (`lint`, `test`, `e2e`); die Arbeitskopien bleiben unberührt.
+- **Addons** (außer mit `--skip-addons`): Die Addon-Repos sind die Geschwisterordner aus den `homepage`-Einträgen in [addons/](addons/). Sie müssen sauber und auf `main` sein. Jedes wird in einem temporären Worktree gegen den lokalen Tarball getestet (`lint`, `test`, `e2e`); die Arbeitskopien bleiben unberührt.
 - **Mit `--push`:** `main` und die Tags pushen. Je Tag ein Release, erst als Entwurf mit `.deb` und SDK-Tarball, dann veröffentlicht; das neueste wird „Latest“. So zeigt `releases/latest` nie auf ein Release ohne Paket. Danach prüft das Skript, dass `releases/latest` die Version samt sha256-`digest` der Assets liefert.
-- **Mit `--push --with-addons`:** danach je Addon die SDK-URL heben, `npm install`, `lint`, `test`, Commit `chore(deps): SDK X.Y.Z` und Push. Scheitert ein Addon, laufen die anderen weiter, am Ende steht die Liste der offenen Repos.
+- **Mit `--push`, ohne `--skip-addons`:** danach je Addon die SDK-URL heben, `npm install`, `lint`, `test`, Commit `chore(deps): SDK X.Y.Z` und Push. Scheitert ein Addon, laufen die anderen weiter, am Ende steht die Liste der offenen Repos.
 
 Assets eines veröffentlichten Releases nie ersetzen: Lockfiles der Addons und der Updater verlassen sich auf ihre Prüfsummen. Bricht ein Lauf nach dem Anlegen eines Entwurfs ab, verweigert der nächste Lauf die Arbeit, bis der Entwurf auf GitHub geprüft und gelöscht ist.
 

@@ -2,15 +2,26 @@
 
 export const VERSION_PATTERN = /^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/;
 
-const OPTIONS = { "--push": "push", "--with-addons": "withAddons", "--help": "help", "-h": "help" };
+const OPTIONS = {
+  "--push": "push",
+  "--skip-addons": "skipAddons",
+  "--skip-tests": "skipTests",
+  "--help": "help",
+  "-h": "help",
+};
 
-/** `--push` veröffentlicht, `--with-addons` testet und hebt die Addon-Repos; unbekannte Schalter werfen */
+/**
+ * `--push` veröffentlicht, `--skip-addons` lässt die Addon-Repos aus, `--skip-tests` die E2E-Tests;
+ * unbekannte Schalter werfen
+ */
 export function parseOptions(argv) {
-  const options = { push: false, withAddons: false, help: false };
+  const options = { push: false, skipAddons: false, skipTests: false, help: false };
   for (const arg of argv) {
     const key = OPTIONS[arg];
-    if (!key)
-      throw new Error(`Unbekannter Schalter ${arg} (erlaubt: --push, --with-addons, --help)`);
+    if (!key) {
+      const known = Object.keys(OPTIONS).filter((name) => name.startsWith("--"));
+      throw new Error(`Unbekannter Schalter ${arg} (erlaubt: ${known.join(", ")})`);
+    }
     options[key] = true;
   }
   return options;

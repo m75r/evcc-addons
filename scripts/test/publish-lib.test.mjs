@@ -13,18 +13,26 @@ import {
 } from "../publish/lib.mjs";
 
 describe("parseOptions", () => {
-  it("kennt --push, --with-addons und --help, Standard ist ein Prüflauf", () => {
-    expect(parseOptions([])).toEqual({ push: false, withAddons: false, help: false });
-    expect(parseOptions(["--push", "--with-addons"])).toEqual({
+  it("kennt --push, --skip-addons, --skip-tests und --help, Standard ist ein Prüflauf mit allem", () => {
+    expect(parseOptions([])).toEqual({
+      push: false,
+      skipAddons: false,
+      skipTests: false,
+      help: false,
+    });
+    expect(parseOptions(["--push", "--skip-addons", "--skip-tests"])).toEqual({
       push: true,
-      withAddons: true,
+      skipAddons: true,
+      skipTests: true,
       help: false,
     });
     expect(parseOptions(["-h"]).help).toBe(true);
   });
 
   it("lehnt unbekannte Schalter ab", () => {
-    expect(() => parseOptions(["--dry-run"])).toThrow("Unbekannter Schalter --dry-run");
+    expect(() => parseOptions(["--with-addons"])).toThrow(
+      "Unbekannter Schalter --with-addons (erlaubt: --push, --skip-addons, --skip-tests, --help)",
+    );
   });
 });
 

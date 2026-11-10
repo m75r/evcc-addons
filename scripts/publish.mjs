@@ -1,10 +1,11 @@
 // Veröffentlicht die getaggte Version auf GitHub, nach /release-commit (Commit und Tag gibt es schon).
-// Aufruf: npm run release [-- --push] [--with-addons]
+// Aufruf: bin/release.sh [--push] [--skip-addons] [--skip-tests] oder npm run release -- <Schalter>
 //
 // Ohne --push ein reiner Prüflauf: Vorbedingungen, lint, test, e2e, test:package (baut .deb und SDK-Tarball),
-// Assets älterer Tags ohne Release; mit --with-addons zusätzlich jedes Addon gegen den neuen Tarball.
+// jedes Addon gegen den neuen Tarball, Assets älterer Tags ohne Release.
 // Mit --push danach: main und Tags pushen, je Tag ein Release (Entwurf, Assets, veröffentlichen), Prüfung
-// von releases/latest; mit --with-addons zusätzlich die Addon-Repos auf das neue SDK heben.
+// von releases/latest, dann die Addon-Repos auf das neue SDK heben.
+// --skip-addons lässt die Addon-Repos ganz aus, --skip-tests die E2E-Tests (Plattform und Addons).
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -28,11 +29,13 @@ import { capture, info, run, step } from "./publish/shell.mjs";
 
 const root = resolve(import.meta.dirname, "..");
 
-const USAGE = `npm run release [-- --push] [--with-addons]
+const USAGE = `bin/release.sh [--push] [--skip-addons] [--skip-tests]
+(oder npm run release -- <Schalter>)
 
-  (ohne)          Prüflauf: nichts wird gepusht oder veröffentlicht
-  --push          main und Tags pushen, Releases auf GitHub veröffentlichen
-  --with-addons   Addons gegen den neuen SDK-Tarball testen; mit --push danach auf das SDK heben
+  (ohne)          Prüflauf mit Addons: nichts wird gepusht oder veröffentlicht
+  --push          main und Tags pushen, Releases auf GitHub veröffentlichen, Addons auf das neue SDK heben
+  --skip-addons   Addon-Repos weder testen noch auf das neue SDK heben
+  --skip-tests    E2E-Tests von Plattform und Addons überspringen (lint, test, test:package laufen)
 `;
 
 const git = (...args) => capture("git", args, root);
@@ -79,9 +82,13 @@ function planReleases(slug, version, strict) {
   return releases;
 }
 
-/** Wie in CI: alles, was vor einer Veröffentlichung grün sein muss; test:package baut die Assets */
-function verifyPlatform() {
-  for (const script of ["lint", "test", "e2e", "test:package"]) {
+/** Alles, was vor einer Veröffentlichung grün sein muss; test:package baut die Assets */
+function verifyPlatform(skipE2e) {
+  const scripts = skipE2e
+    ? ["lint", "test", "test:package"]
+    : ["lint", "test", "e2e", "test:package"];
+  if (skipE2e) info("E2E-Tests übersprungen (--skip-tests)");
+  for (const script of scripts) {
     step(`npm run ${script}`);
     run("npm", ["run", script], root);
   }
@@ -149,7 +156,8 @@ function prepare(options) {
   const slug = repoSlug(git("remote", "get-url", "origin"));
   assertGhReady();
   if (options.push) checkRemote();
-  const repos = options.withAddons ? addonRepos(root) : [];
+  const repos = options.skipAddons ? [] : addonRepos(root);
+  if (options.skipAddons) info("Addon-Repos übersprungen (--skip-addons)");
   assertAddonReposReady(repos);
   if (repos.length > 0) info(`Addon-Repos: ${repos.map((r) => r.name).join(", ")}`);
   const releases = planReleases(slug, version, options.push);
@@ -160,8 +168,9 @@ function main(argv) {
   const options = parseOptions(argv);
   if (options.help) return void process.stdout.write(USAGE);
   const { version, slug, repos, releases } = prepare(options);
-  verifyPlatform();
-  if (repos.length > 0) testAddonsAgainst(repos, join(root, "dist", sdkFileName(version)));
+  verifyPlatform(options.skipTests);
+  const tarball = join(root, "dist", sdkFileName(version));
+  if (repos.length > 0) testAddonsAgainst(repos, tarball, { skipE2e: options.skipTests });
   const withAssets = collectAssets(releases, version);
   if (!options.push) return summary(withAssets, repos, false);
   publish(slug, withAssets, version);
